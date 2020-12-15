@@ -83,7 +83,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             # use self to register the modules in self.modules()
             conv_first2, conv_block2, conv_last2 = self.build_conv_layers(
                 num_layers, n_head, self.pred_input_dim, hidden_dim,
-                embedding_dim, attn_dropout, attn_mask=True
+                embedding_dim, attn_dropout, attn_mask=False
             )
             self.conv_first_after_pool.append(conv_first2)
             self.conv_block_after_pool.append(conv_block2)
