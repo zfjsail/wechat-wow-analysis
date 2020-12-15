@@ -131,10 +131,10 @@ class GATEncoderGraph(nn.Module):
             for _ in range(num_layers - 2)
         ])
 
-        conv_last = BatchMultiHeadGraphAttention(n_head, f_in=hidden_dim,
-                                                 f_out=emb_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
+        # conv_last = BatchMultiHeadGraphAttention(n_head, f_in=hidden_dim,
+        #                                          f_out=emb_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
 
-        return conv_first, conv_block, conv_last
+        return conv_first, conv_block, None
 
     def build_pred_layers(self, pred_input_dim, pred_hidden_dims, label_dim, num_aggs=1):
         pred_input_dim = pred_input_dim * num_aggs
@@ -194,8 +194,10 @@ class GATEncoderGraph(nn.Module):
             if self.bn:
                 x = self.apply_bn(x)
             x_all.append(x)
-        x = conv_last(x, adj)
-        x_all.append(x)
+
+        if conv_last is not None:
+            x = conv_last(x, adj)
+            x_all.append(x)
         # x_tensor: [batch_size x head x num_nodes x embedding]
         x_tensor = torch.cat(x_all, dim=3)
 
@@ -232,7 +234,8 @@ class GATEncoderGraph(nn.Module):
             if self.num_aggs == 2:
                 out = torch.sum(x, dim=1)
                 out_all.append(out)
-        x = self.conv_last(x, adj)
+        if self.conv_last is not None:
+            x = self.conv_last(x, adj)
         # x = self.act(x)
         out, _ = torch.max(x, dim=1)
         out_all.append(out)
