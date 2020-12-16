@@ -222,16 +222,16 @@ class GATEncoderGraph(nn.Module):
         if self.bn:
             x = self.apply_bn(x)
         out_all = []
-        # out, _ = torch.max(x, dim=1)
-        out = torch.sum(x, dim=1)
+        out, _ = torch.max(x, dim=1)
+        # out = torch.sum(x, dim=1)
         out_all.append(out)
         for i in range(self.num_layers - 2):
             x = self.conv_block[i](x, adj)
             x = self.act(x)
             if self.bn:
                 x = self.apply_bn(x)
-            # out, _ = torch.max(x, dim=1)
-            out = torch.sum(x, dim=1)
+            out, _ = torch.max(x, dim=1)
+            # out = torch.sum(x, dim=1)
             out_all.append(out)
             if self.num_aggs == 2:
                 out = torch.sum(x, dim=1)
@@ -239,8 +239,8 @@ class GATEncoderGraph(nn.Module):
         if self.conv_last is not None:
             x = self.conv_last(x, adj)
         # x = self.act(x)
-        # out, _ = torch.max(x, dim=1)
-        out = torch.sum(x, dim=1)
+        out, _ = torch.max(x, dim=1)
+        # out = torch.sum(x, dim=1)
         out_all.append(out)
         if self.num_aggs == 2:
             out = torch.sum(x, dim=1)
