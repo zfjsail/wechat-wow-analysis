@@ -119,8 +119,8 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
                                                              attn_mask=cur_attn_mask)
             assign_conv_block = nn.ModuleList()
             assign_conv_last = None
-            assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
-            # assign_pred_input_dim = assign_dim
+            # assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
+            assign_pred_input_dim = assign_dim
             assign_pred = self.build_pred_layers(assign_pred_input_dim, [], assign_dim, num_aggs=1)
 
             # next pooling layer
@@ -132,7 +132,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             self.assign_conv_last_modules.append(assign_conv_last)
             self.assign_pred_modules.append(assign_pred)
 
-        self.pred_model = self.build_pred_layers(self.pred_input_dim * (num_pooling + 1), pred_hidden_dims,
+        self.pred_model = self.build_pred_layers(embedding_dim * (num_pooling + 2), pred_hidden_dims,
                                                  label_dim, num_aggs=self.num_aggs)
 
         for m in self.modules():
@@ -212,6 +212,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
                                                                    self.conv_block_after_pool[i],
                                                                    self.conv_last_after_pool[i])
 
+            # print("emb shape", embedding_tensor.shape)
             out, _ = torch.max(embedding_tensor, dim=1)
             # out = torch.sum(embedding_tensor, dim=1)
             out_all.append(out)
