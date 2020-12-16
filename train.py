@@ -66,7 +66,7 @@ parser.add_argument('--data', type=str, default="twitter", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
-parser.add_argument('--num-pooling', type=int, default=0, help="Number of hierarchical pooling layers")
+parser.add_argument('--num-pooling', type=int, default=1, help="Number of hierarchical pooling layers")
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()

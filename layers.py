@@ -123,7 +123,7 @@ class GATEncoderGraph(nn.Module):
     def build_conv_layers(self, num_layers, n_head, input_dim, hidden_dim, emb_dim, attn_dropout, attn_mask):
 
         conv_first = BatchMultiHeadGraphAttention(n_head, f_in=input_dim,
-                                                  f_out=hidden_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
+                                                  f_out=emb_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
 
         conv_block = nn.ModuleList([
             BatchMultiHeadGraphAttention(n_head=n_head, f_in=hidden_dim, f_out=hidden_dim, attn_dropout=attn_dropout,
@@ -176,7 +176,7 @@ class GATEncoderGraph(nn.Module):
         Returns:
             Embedding matrix with dimension [batch_size x num_nodes x embedding]
         '''
-
+        # print("conv first", conv_first.w.shape, "x", x.shape)
         x = conv_first(x, adj)
         x = self.act(x)
         if self.bn:

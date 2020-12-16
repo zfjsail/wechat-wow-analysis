@@ -82,7 +82,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
         for i in range(num_pooling):  # conv on clusters
             # use self to register the modules in self.modules()
             conv_first2, conv_block2, conv_last2 = self.build_conv_layers(
-                num_layers, n_head, self.pred_input_dim, hidden_dim,
+                num_layers, n_head, embedding_dim, hidden_dim,
                 embedding_dim, attn_dropout, attn_mask=False
             )
             self.conv_first_after_pool.append(conv_first2)
@@ -110,7 +110,8 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             assign_dims.append(assign_dim)
             assign_conv_first, assign_conv_block, assign_conv_last = self.build_conv_layers(
                 assign_num_layers, n_head, assign_input_dim, assign_hidden_dim, assign_dim, attn_dropout, cur_attn_mask)
-            assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
+            # assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
+            assign_pred_input_dim = assign_dim
             assign_pred = self.build_pred_layers(assign_pred_input_dim, [], assign_dim, num_aggs=1)
 
             # next pooling layer
@@ -122,7 +123,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             self.assign_conv_last_modules.append(assign_conv_last)
             self.assign_pred_modules.append(assign_pred)
 
-        self.pred_model = self.build_pred_layers(self.pred_input_dim * (num_pooling + 1), pred_hidden_dims,
+        self.pred_model = self.build_pred_layers(embedding_dim * (num_pooling + 1), pred_hidden_dims,
                                                  label_dim, num_aggs=self.num_aggs)
 
         for m in self.modules():
