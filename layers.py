@@ -123,7 +123,7 @@ class GATEncoderGraph(nn.Module):
     def build_conv_layers(self, num_layers, n_head, input_dim, hidden_dim, emb_dim, attn_dropout, attn_mask):
 
         conv_first = BatchMultiHeadGraphAttention(n_head, f_in=input_dim,
-                                                  f_out=emb_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
+                                                  f_out=hidden_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
 
         conv_block = nn.ModuleList([
             BatchMultiHeadGraphAttention(n_head=n_head, f_in=hidden_dim, f_out=hidden_dim, attn_dropout=attn_dropout,
@@ -131,10 +131,10 @@ class GATEncoderGraph(nn.Module):
             for _ in range(num_layers - 2)
         ])
 
-        # conv_last = BatchMultiHeadGraphAttention(n_head, f_in=hidden_dim,
-        #                                          f_out=emb_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
+        conv_last = BatchMultiHeadGraphAttention(n_head, f_in=hidden_dim,
+                                                 f_out=emb_dim, attn_dropout=attn_dropout, attn_mask=attn_mask)
 
-        return conv_first, conv_block, None
+        return conv_first, conv_block, conv_last
 
     def build_pred_layers(self, pred_input_dim, pred_hidden_dims, label_dim, num_aggs=1):
         pred_input_dim = pred_input_dim * num_aggs
