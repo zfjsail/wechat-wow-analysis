@@ -23,5 +23,5 @@ else:
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(OUT_DIR, exist_ok=True)
 
-TEST_SIZE = 100001
-# TEST_SIZE = np.iinfo(np.int64).max
+# TEST_SIZE = 100001
+TEST_SIZE = np.iinfo(np.int64).max
