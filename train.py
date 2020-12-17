@@ -62,7 +62,7 @@ parser.add_argument('--class-weight-balanced', action='store_true', default=True
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
 parser.add_argument('--label-type', type=str, default="click", help="Label type")
-parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
+parser.add_argument('--data', type=str, default="twitter", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
