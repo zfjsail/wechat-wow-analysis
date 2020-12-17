@@ -96,6 +96,7 @@ class GATEncoderGraph(nn.Module):
         self.bn = bn
         self.num_layers = num_layers
         self.num_aggs = 1
+        self.dropout = dropout
 
         self.bias = True
         if args is not None:
@@ -103,8 +104,8 @@ class GATEncoderGraph(nn.Module):
 
         self.conv_first, self.conv_block, self.conv_last = self.build_conv_layers(
             num_layers, n_head, input_dim, hidden_dim, embedding_dim, attn_dropout, True)
-        # self.act = nn.ReLU()
-        self.act = nn.ELU()
+        self.act = nn.ReLU()
+        # self.act = nn.ELU()
         self.label_dim = label_dim
 
         if concat:
@@ -182,6 +183,7 @@ class GATEncoderGraph(nn.Module):
         x = self.act(x)
         if self.bn:
             x = self.apply_bn(x)
+        x = F.dropout(x, self.dropout, training=self.training)
 
         x_first = x
 
@@ -194,6 +196,7 @@ class GATEncoderGraph(nn.Module):
             x = self.act(x)
             if self.bn:
                 x = self.apply_bn(x)
+            x = F.dropout(x, self.dropout, training=self.training)
             x_all.append(x)
 
         if conv_last is not None:
