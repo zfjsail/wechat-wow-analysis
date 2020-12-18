@@ -153,7 +153,8 @@ elif args.model == "diffpool_prone":
                                  use_diffpool=True, use_deepinf=False, use_prone=True,
                                  mu=args.mu, theta=args.theta,
                                  attn_dropout=args.attn_dropout,
-                                 num_pooling=args.num_pooling)
+                                 num_pooling=args.num_pooling,
+                                 args=args)
 elif args.model == "diffpool":
     model = BatchWrapDiffGATPool(pretrained_emb_dim=args.dim,
                                  vertex_feature_dim=vertex_feature_dim,
@@ -161,7 +162,8 @@ elif args.model == "diffpool":
                                  n_units=n_units, n_heads=n_heads,
                                  dropout=args.dropout, instance_normalization=args.instance_normalization,
                                  use_diffpool=True, use_deepinf=False, use_prone=False,
-                                 mu=args.mu, theta=args.theta)
+                                 mu=args.mu, theta=args.theta,
+                                 args=args)
 
 print(model)
 if args.cuda:
