@@ -39,7 +39,7 @@ parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to
 parser.add_argument('--lr', type=float, default=0.01, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--weight-decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--dropout', type=float, default=0.2,
+parser.add_argument('--dropout', type=float, default=0.4,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--attn-dropout', type=float, default=0.2, help='adj Dropout rate.')  # little use
 parser.add_argument('--hidden-units', type=str, default="16,8",
