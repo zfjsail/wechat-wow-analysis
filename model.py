@@ -228,7 +228,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
                     ego_assign = self.assign_tensor[:, -1, :].unsqueeze(1)
             else:
                 ego_assign = torch.bmm(ego_assign, self.assign_tensor)
-            out = torch.bmm(ego_assign, embedding_tensor)
+            out = torch.bmm(ego_assign, embedding_tensor).squeeze(1)
 
             out_all.append(out)
             if self.num_aggs == 2:
