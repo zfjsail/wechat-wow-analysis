@@ -104,8 +104,8 @@ class GATEncoderGraph(nn.Module):
 
         self.conv_first, self.conv_block, self.conv_last = self.build_conv_layers(
             num_layers, n_head, input_dim, hidden_dim, embedding_dim, attn_dropout, True)
-        self.act = nn.ReLU()
-        # self.act = nn.ELU()
+        # self.act = nn.ReLU()
+        self.act = nn.ELU()
         self.label_dim = label_dim
 
         if concat:
@@ -146,7 +146,8 @@ class GATEncoderGraph(nn.Module):
             pred_layers = []
             for pred_dim in pred_hidden_dims:
                 pred_layers.append(nn.Linear(pred_input_dim, pred_dim))
-                pred_layers.append(self.act)
+                # pred_layers.append(self.act)
+                pred_layers.append(nn.ReLU())
                 pred_input_dim = pred_dim
             pred_layers.append(nn.Linear(pred_dim, label_dim))
             pred_model = nn.Sequential(*pred_layers)
