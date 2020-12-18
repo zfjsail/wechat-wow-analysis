@@ -104,8 +104,8 @@ class GATEncoderGraph(nn.Module):
 
         self.conv_first, self.conv_block, self.conv_last = self.build_conv_layers(
             num_layers, n_head, input_dim, hidden_dim, embedding_dim, attn_dropout, True)
-        # self.act = nn.ReLU()
-        self.act = nn.ELU()
+        self.act = nn.ReLU()
+        # self.act = nn.ELU()
         self.label_dim = label_dim
 
         if concat:
