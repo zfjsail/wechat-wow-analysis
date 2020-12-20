@@ -82,12 +82,12 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
         self.conv_last_after_pool = nn.ModuleList()
         for i in range(num_pooling):  # conv on clusters
             # use self to register the modules in self.modules()
-            # conv_first2, conv_block2, conv_last2 = self.build_conv_layers(
-            #     num_layers, n_head, self.pred_input_dim, hidden_dim,
-            #     embedding_dim, attn_dropout, attn_mask=False
-            # )
-            conv_first2 = BatchMultiHeadGraphAttention(n_head, f_in=self.pred_input_dim,
-                                                       f_out=embedding_dim, attn_dropout=attn_dropout, attn_mask=False)
+            conv_first2, conv_block2, conv_last2 = self.build_conv_layers(
+                num_layers, n_head, self.pred_input_dim, hidden_dim,
+                embedding_dim, attn_dropout, attn_mask=False
+            )
+            # conv_first2 = BatchMultiHeadGraphAttention(n_head, f_in=self.pred_input_dim,
+            #                                            f_out=embedding_dim, attn_dropout=attn_dropout, attn_mask=False)
             conv_block2 = nn.ModuleList()
             conv_last2 = None
             self.conv_first_after_pool.append(conv_first2)
@@ -113,15 +113,15 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             else:
                 cur_attn_mask = True  # old False
             assign_dims.append(assign_dim)
-            # assign_conv_first, assign_conv_block, assign_conv_last = self.build_conv_layers(
-            #     assign_num_layers, n_head, assign_input_dim, assign_hidden_dim, assign_dim, attn_dropout, cur_attn_mask)
-            assign_conv_first = BatchMultiHeadGraphAttention(n_head, f_in=assign_input_dim,
-                                                             f_out=assign_dim, attn_dropout=attn_dropout,
-                                                             attn_mask=cur_attn_mask)
+            assign_conv_first, assign_conv_block, assign_conv_last = self.build_conv_layers(
+                assign_num_layers, n_head, assign_input_dim, assign_hidden_dim, assign_dim, attn_dropout, cur_attn_mask)
+            # assign_conv_first = BatchMultiHeadGraphAttention(n_head, f_in=assign_input_dim,
+            #                                                  f_out=assign_dim, attn_dropout=attn_dropout,
+            #                                                  attn_mask=cur_attn_mask)
             assign_conv_block = nn.ModuleList()
             assign_conv_last = None
-            # assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
-            assign_pred_input_dim = assign_dim
+            assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
+            # assign_pred_input_dim = assign_dim
             assign_pred = self.build_pred_layers(assign_pred_input_dim, [], assign_dim, num_aggs=1)
 
             # next pooling layer
@@ -133,7 +133,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             self.assign_conv_last_modules.append(assign_conv_last)
             self.assign_pred_modules.append(assign_pred)
 
-        self.pred_model = self.build_pred_layers(embedding_dim * (num_pooling + 2), pred_hidden_dims,
+        self.pred_model = self.build_pred_layers(assign_hidden_dim * (num_pooling + 1), pred_hidden_dims,
                                                  label_dim, num_aggs=self.num_aggs)
 
         for m in self.modules():
@@ -176,11 +176,11 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
         ego_embs.append(gat_add_tensor[:, 0, :])
 
         # out, _ = torch.max(embedding_tensor, dim=1)
-        out = torch.sum(embedding_tensor, dim=1)
-        # if self.args.data == "wechat":
-        #     out = embedding_tensor[:, 0, :]
-        # else:
-        #     out = embedding_tensor[:, -1, :]
+        # out = torch.sum(embedding_tensor, dim=1)
+        if self.args.data == "wechat":
+            out = embedding_tensor[:, 0, :]
+        else:
+            out = embedding_tensor[:, -1, :]
         out_all.append(out)
         if self.num_aggs == 2:
             out = torch.sum(embedding_tensor, dim=1)
@@ -220,15 +220,15 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
 
             # print("emb shape", embedding_tensor.shape)
             # out, _ = torch.max(embedding_tensor, dim=1)
-            out = torch.sum(embedding_tensor, dim=1)
-            # if ego_assign is None:
-            #     if self.args.data == "wechat":
-            #         ego_assign = self.assign_tensor[:, 0, :].unsqueeze(1)
-            #     else:
-            #         ego_assign = self.assign_tensor[:, -1, :].unsqueeze(1)
-            # else:
-            #     ego_assign = torch.bmm(ego_assign, self.assign_tensor)
-            # out = torch.bmm(ego_assign, embedding_tensor).squeeze(1)
+            # out = torch.sum(embedding_tensor, dim=1)
+            if ego_assign is None:
+                if self.args.data == "wechat":
+                    ego_assign = self.assign_tensor[:, 0, :].unsqueeze(1)
+                else:
+                    ego_assign = self.assign_tensor[:, -1, :].unsqueeze(1)
+            else:
+                ego_assign = torch.bmm(ego_assign, self.assign_tensor)
+            out = torch.bmm(ego_assign, embedding_tensor).squeeze(1)
 
             out_all.append(out)
             if self.num_aggs == 2:
