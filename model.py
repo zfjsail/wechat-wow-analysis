@@ -89,7 +89,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             # conv_first2 = BatchMultiHeadGraphAttention(n_head, f_in=self.pred_input_dim,
             #                                            f_out=embedding_dim, attn_dropout=attn_dropout, attn_mask=False)
             conv_block2 = nn.ModuleList()
-            conv_last2 = None
+            # conv_last2 = None
             self.conv_first_after_pool.append(conv_first2)
             self.conv_block_after_pool.append(conv_block2)
             self.conv_last_after_pool.append(conv_last2)
@@ -119,7 +119,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             #                                                  f_out=assign_dim, attn_dropout=attn_dropout,
             #                                                  attn_mask=cur_attn_mask)
             assign_conv_block = nn.ModuleList()
-            assign_conv_last = None
+            # assign_conv_last = None
             assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
             # assign_pred_input_dim = assign_dim
             assign_pred = self.build_pred_layers(assign_pred_input_dim, [], assign_dim, num_aggs=1)
@@ -133,7 +133,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             self.assign_conv_last_modules.append(assign_conv_last)
             self.assign_pred_modules.append(assign_pred)
 
-        self.pred_model = self.build_pred_layers(assign_hidden_dim * (num_pooling + 1), pred_hidden_dims,
+        self.pred_model = self.build_pred_layers(self.pred_input_dim * (num_pooling + 1), pred_hidden_dims,
                                                  label_dim, num_aggs=self.num_aggs)
 
         for m in self.modules():

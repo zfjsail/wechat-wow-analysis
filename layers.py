@@ -112,6 +112,7 @@ class GATEncoderGraph(nn.Module):
             self.pred_input_dim = hidden_dim * (num_layers - 1) + embedding_dim
         else:
             self.pred_input_dim = embedding_dim
+        # print(self.pred_input_dim, hidden_dim, num_layers, embedding_dim)
 
         self.pred_model = self.build_pred_layers(self.pred_input_dim, pred_hidden_dims,
                                                  label_dim, num_aggs=self.num_aggs)
