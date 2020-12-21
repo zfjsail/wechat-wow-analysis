@@ -36,7 +36,7 @@ parser.add_argument('--model', type=str, default='diffpool_prone', help="models 
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.01, help='Initial learning rate.')  # wow: 0.01, click: 0.1
+parser.add_argument('--lr', type=float, default=0.1, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--weight-decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--dropout', type=float, default=0.2,
@@ -278,7 +278,7 @@ def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
             np.save(join(out_dir, "labels-batch-{}-0.npy".format(args.label_type)), labels.cpu().numpy())
 
     logger.info("train loss in this epoch %f", loss / total)
-    if (epoch + 1) % args.check_point == 0:
+    if epoch >= 0:
         logger.info("epoch %d, checkpoint!", epoch)
         best_thr, cur_valid_r = evaluate(epoch, valid_loader, return_best_thr=True, log_desc='valid_')
         _, cur_test_r = evaluate(epoch, test_loader, thr=best_thr, log_desc='test_')
