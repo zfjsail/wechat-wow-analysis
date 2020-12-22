@@ -41,7 +41,7 @@ parser.add_argument('--weight-decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--dropout', type=float, default=0.4,
                     help='Dropout rate (1 - keep probability).')
-parser.add_argument('--attn-dropout', type=float, default=0.2, help='adj Dropout rate.')  # little use
+parser.add_argument('--attn-dropout', type=float, default=0, help='adj Dropout rate.')  # little use
 parser.add_argument('--hidden-units', type=str, default="16,8",
                     help="Hidden units in each hidden layer, splitted with comma")
 parser.add_argument('--heads', type=str, default="8,8,1",
@@ -62,7 +62,7 @@ parser.add_argument('--class-weight-balanced', action='store_true', default=True
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
 parser.add_argument('--label-type', type=str, default="like", help="Label type")
-parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
+parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
