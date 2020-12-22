@@ -52,7 +52,7 @@ parser.add_argument('--check-point', type=int, default=10, help="Check point")
 parser.add_argument('--instance-normalization', action='store_true', default=False,
                     help="Enable instance normalization")
 parser.add_argument('--shuffle', action='store_true', default=True, help="Shuffle dataset")
-parser.add_argument('--file-dir', type=str, default=join(settings.DATA_DIR, "train-balance"),
+parser.add_argument('--file-dir', type=str, default=join(settings.DATA_DIR, "wechat"),
                     help="Input file directory")
 parser.add_argument('--train-ratio', type=float, default=50, help="Training ratio (0, 100)")
 parser.add_argument('--valid-ratio', type=float, default=25, help="Validation ratio (0, 100)")
@@ -61,8 +61,8 @@ parser.add_argument('--class-weight-balanced', action='store_true', default=True
                          " to class frequencies in the input data")
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
-parser.add_argument('--label-type', type=str, default="click", help="Label type")
-parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
+parser.add_argument('--label-type', type=str, default="like", help="Label type")
+parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
