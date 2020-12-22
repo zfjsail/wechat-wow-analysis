@@ -121,7 +121,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             assign_conv_last = None
             # assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
             assign_pred_input_dim = assign_dim
-            assign_pred = self.build_pred_layers(assign_pred_input_dim, [], assign_dim, num_aggs=1)
+            assign_pred = self.build_pred_layers(assign_pred_input_dim, [assign_dim], assign_dim, num_aggs=1)
 
             # next pooling layer
             assign_input_dim = self.pred_input_dim
