@@ -66,11 +66,12 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
         super(SoftPoolingGATEncoder, self).__init__(input_dim, hidden_dim, embedding_dim, label_dim,
                                                     num_layers, n_head, attn_dropout,
                                                     pred_hidden_dims=pred_hidden_dims, concat=concat,
-                                                    args=args, bn=bn, dropout=dropout)
+                                                    args=None, bn=bn, dropout=dropout)
 
         self.num_pooling = num_pooling
         self.linkpred = linkpred
         self.assign_ent = True
+        self.args = args
 
         self.use_diffpool = use_diffpool
         self.use_deepinf = use_deepinf
@@ -261,7 +262,7 @@ class BatchWrapDiffGATPool(nn.Module):
                  n_units=[1433, 8, 7], n_heads=[8, 1],
                  dropout=0.1, attn_dropout=0.0,
                  instance_normalization=False, use_diffpool=True, use_deepinf=True, use_prone=True,
-                 mu=1, theta=3.5, num_pooling=1):
+                 mu=1, theta=3.5, num_pooling=1, args=None):
         super(BatchWrapDiffGATPool, self).__init__()
         self.n_layer = len(n_units) - 1
         self.dropout = dropout
@@ -286,7 +287,7 @@ class BatchWrapDiffGATPool(nn.Module):
                                                 embedding_dim=16, label_dim=label_dim, num_layers=2,
                                                 assign_hidden_dim=32, n_head=n_heads[0], attn_dropout=attn_dropout,
                                                 use_diffpool=use_diffpool, use_deepinf=use_deepinf,
-                                                num_pooling=num_pooling, bn=True, dropout=dropout)
+                                                num_pooling=num_pooling, bn=True, dropout=dropout, args=args)
 
         self.fc_after_pool = nn.Linear(label_dim, 2)
         self.fc_after_prone = nn.Linear(node_feature_input_dim, 2)
