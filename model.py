@@ -356,5 +356,5 @@ class BatchWrapDiffGATPool(nn.Module):
             xx = xx[:, 0, :]
             x = self.fc_after_prone(F.relu(xx))
 
-        # return F.log_softmax(x, dim=-1), assign_mat
-        return F.softmax(x, dim=-1), assign_mat
+        return F.log_softmax(x, dim=-1), assign_mat
+        # return F.softmax(x, dim=-1), assign_mat

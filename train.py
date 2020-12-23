@@ -213,8 +213,8 @@ def evaluate(epoch, loader, thr=None, return_best_thr=False, log_desc='valid_'):
         output, _ = model(features, graph, embed, cur_vertex_features)
         if args.model == "gat":
             output = output[:, 0, :]
-        # loss_batch = F.nll_loss(output, labels, class_weight)
-        loss_batch = mae_loss(output, labels, class_weight)
+        loss_batch = F.nll_loss(output, labels, class_weight)
+        # loss_batch = mae_loss(output, labels, class_weight)
         loss += bs * loss_batch.item()
 
         y_true += labels.data.tolist()
@@ -273,8 +273,8 @@ def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
         output, assign_mat = model(features, graph, embed, cur_vertex_features)
         if args.model == "gat":
             output = output[:, 0, :]
-        # loss_train = F.nll_loss(output, labels, class_weight)
-        loss_train = mae_loss(output, labels, class_weight)
+        loss_train = F.nll_loss(output, labels, class_weight)
+        # loss_train = mae_loss(output, labels, class_weight)
         loss += bs * loss_train.item()
         total += bs
         loss_train.backward()
