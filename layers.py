@@ -10,11 +10,13 @@ from torch.nn.parameter import Parameter
 class BatchMultiHeadGraphAttention(nn.Module):
     def __init__(self, n_head, f_in, f_out, attn_dropout, attn_mask=True, bias=True):
         super(BatchMultiHeadGraphAttention, self).__init__()
-        self.n_head = 1
-        # self.n_head = n_head
+        # self.n_head = 1
+        self.n_head = n_head
         self.w = Parameter(torch.Tensor(self.n_head, f_in, f_out))
-        self.a_src = Parameter(torch.Tensor(n_head, f_out, 1))
-        self.a_dst = Parameter(torch.Tensor(n_head, f_out, 1))
+        # self.a_src = Parameter(torch.Tensor(n_head, f_out, 1))
+        self.a_src = Parameter(torch.Tensor(n_head, f_out, 8))
+        # self.a_dst = Parameter(torch.Tensor(n_head, f_out, 1))
+        self.a_dst = Parameter(torch.Tensor(n_head, f_out, 8))
 
         self.w_bi = Parameter(torch.Tensor(1, f_out, f_out))
 
@@ -35,6 +37,34 @@ class BatchMultiHeadGraphAttention(nn.Module):
         init.xavier_uniform_(self.a_dst)
 
     def forward(self, h, adj):
+        n = adj.size()[1]
+        if len(h.shape) == 3:
+            h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
+        else:
+            h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
+        attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 8
+        attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 8
+        attn_src = attn_src.view(-1, n, 8)
+        attn_dst = attn_dst.view(-1, n, 8)
+        attn = torch.bmm(attn_src, attn_dst.permute(0, 2, 1))  # (bs*n_head) x n x n
+        attn = attn.view(-1, self.n_head, n, 8)
+
+        attn = self.leaky_relu(attn)
+        mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
+
+        if self.attn_mask:
+            attn.data.masked_fill_(mask.bool(), float("-inf"))
+
+        attn = self.softmax(attn)  # bs x n_head x n x n
+        if self.training:
+            attn = self.dropout(attn)
+        output = torch.matmul(attn, h_prime)  # bs x n_head x n x f_out
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def forward_old2(self, h, adj):
         n = adj.size()[1]
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
