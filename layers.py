@@ -15,6 +15,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         self.a_src = Parameter(torch.Tensor(n_head, f_out, 1))
         self.a_dst = Parameter(torch.Tensor(n_head, f_out, 1))
 
+        self.w_bi = Parameter(torch.Tensor(1, f_out, f_out))
+
         self.attn_mask = attn_mask
 
         self.leaky_relu = nn.LeakyReLU(negative_slope=0.2)
@@ -27,10 +29,36 @@ class BatchMultiHeadGraphAttention(nn.Module):
             self.register_parameter('bias', None)
 
         init.xavier_uniform_(self.w)
+        init.xavier_uniform_(self.w_bi)
         init.xavier_uniform_(self.a_src)
         init.xavier_uniform_(self.a_dst)
 
     def forward(self, h, adj):
+        n = adj.size()[1]
+        if len(h.shape) == 3:
+            h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
+        else:
+            h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
+
+        attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
+        attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+
+        attn = self.leaky_relu(attn)
+        mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
+
+        if self.attn_mask:
+            attn.data.masked_fill_(mask.bool(), float("-inf"))
+
+        attn = self.softmax(attn)  # bs x n_head x n x n
+        if self.training:
+            attn = self.dropout(attn)
+        output = torch.matmul(attn, h_prime)  # bs x n_head x n x f_out
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def forward_old1(self, h, adj):
         n = adj.size()[1]
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
