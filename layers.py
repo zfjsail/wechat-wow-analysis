@@ -38,6 +38,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
 
     def forward(self, h, adj):
         n = adj.size()[1]
+        bs = adj.size()[0]
+        # print("h", h.shape)
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
@@ -47,7 +49,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         attn_src = attn_src.view(-1, n, 8)
         attn_dst = attn_dst.view(-1, n, 8)
         attn = torch.bmm(attn_src, attn_dst.permute(0, 2, 1))  # (bs*n_head) x n x n
-        attn = attn.view(-1, self.n_head, n, 8)
+        attn = attn.view(bs, -1, n, n)
+        # print("n_head", self.n_head, attn.shape)
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
@@ -92,6 +95,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
 
     def forward_old1(self, h, adj):
         n = adj.size()[1]
+        print("h", h.shape)
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
