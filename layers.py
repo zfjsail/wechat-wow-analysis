@@ -10,8 +10,9 @@ from torch.nn.parameter import Parameter
 class BatchMultiHeadGraphAttention(nn.Module):
     def __init__(self, n_head, f_in, f_out, attn_dropout, attn_mask=True, bias=True):
         super(BatchMultiHeadGraphAttention, self).__init__()
-        self.n_head = n_head
-        self.w = Parameter(torch.Tensor(n_head, f_in, f_out))
+        self.n_head = 1
+        # self.n_head = n_head
+        self.w = Parameter(torch.Tensor(self.n_head, f_in, f_out))
         self.a_src = Parameter(torch.Tensor(n_head, f_out, 1))
         self.a_dst = Parameter(torch.Tensor(n_head, f_out, 1))
 
@@ -41,6 +42,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
 
         attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
+        # print("h_prime shape", h_prime.shape)
         attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
 
         attn = self.leaky_relu(attn)
