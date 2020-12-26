@@ -43,6 +43,35 @@ class BatchMultiHeadGraphAttention(nn.Module):
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
+        # attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
+        # attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
+        # attn = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
+        #                                                                                2)  # bs x n_head x n x n
+
+        attn = torch.einsum("abce,abde->abcd", h_prime, h_prime)
+
+        attn = self.leaky_relu(attn)
+        mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
+
+        if self.attn_mask:
+            attn.data.masked_fill_(mask.bool(), float("-inf"))
+
+        attn = self.softmax(attn)  # bs x n_head x n x n
+        if self.training:
+            attn = self.dropout(attn)
+        output = torch.matmul(attn, h_prime)  # bs x n_head x n x f_out
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def forward_old4(self, h, adj):
+        n = adj.size()[1]
+        # print("h", h.shape)
+        if len(h.shape) == 3:
+            h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
+        else:
+            h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
         # h_expand = h_prime.unsqueeze(3).expand(-1, -1, -1, n, -1)
         # print("h_prime", h_prime.shape)
         h_dot = torch.einsum("abce,abde->abcde", h_prime, h_prime)
@@ -129,7 +158,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
 
     def forward_old1(self, h, adj):
         n = adj.size()[1]
-        print("h", h.shape)
+        # print("h", h.shape)
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
