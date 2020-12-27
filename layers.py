@@ -48,7 +48,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
         #                                                                                2)  # bs x n_head x n x n
 
-        attn = torch.einsum("abce,abde->abcd", h_prime, h_prime)
+        # attn = torch.einsum("abce,abde->abcd", h_prime, h_prime)  # weibo AUC: 0.8251 Prec: 0.4869 Rec: 0.7387 F1: 0.5869
+        attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
@@ -65,7 +66,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward_old4(self, h, adj):
+    def forward_old4(self, h, adj):  # weibo bs = 256 AUC: 0.8331 Prec: 0.5027 Rec: 0.7336 F1: 0.5966
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
