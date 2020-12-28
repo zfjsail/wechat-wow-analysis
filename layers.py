@@ -52,7 +52,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))  # weibo AUC: 0.8245 Prec: 0.4834 Rec: 0.7556 F1: 0.5896
         attn_sdp = torch.einsum("abce,abde->abcd", h_prime, h_prime)/np.sqrt(h_prime.size()[-1])  # AUC: 0.8280 Prec: 0.4885 Rec: 0.7489 F1: 0.5913
         # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))/np.sqrt(h_prime.size()[-1])  # weibo AUC: 0.8219 Prec: 0.4836 Rec: 0.7456 F1: 0.5866
-        attn = attn_go * torch.sigmoid(attn_sdp)  # AUC: 0.8324 Prec: 0.4911 Rec: 0.7550 F1: 0.5951
+        attn = attn_go * torch.sigmoid(attn_sdp)  # weibo lr=0.01 AUC: 0.8324 Prec: 0.4911 Rec: 0.7550 F1: 0.5951
+        attn = attn_go * torch.sigmoid(attn_sdp)  # weibo lr=0.1 AUC: 0.8322 Prec: 0.4963 Rec: 0.7413 F1: 0.5946
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
@@ -141,10 +142,12 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
 
-        attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
+        # attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
+        attn_left = torch.matmul(torch.tanh(h_prime), self.w_bi).squeeze(1)  # bs x n x f_out
         # print("h_prime shape", h_prime.shape)
-        attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
-        attn = torch.tanh(attn)
+        # attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+        attn = torch.bmm(attn_left, torch.tanh(h_prime).squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+        attn = torch.tanh(attn)  # weibo AUC: 0.8234 Prec: 0.4820 Rec: 0.7455 F1: 0.5854
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
