@@ -10,8 +10,8 @@ from torch.nn.parameter import Parameter
 class BatchMultiHeadGraphAttention(nn.Module):
     def __init__(self, n_head, f_in, f_out, attn_dropout, attn_mask=True, bias=True):
         super(BatchMultiHeadGraphAttention, self).__init__()
-        # self.n_head = 1
-        self.n_head = n_head
+        self.n_head = 1
+        # self.n_head = n_head
         self.w = Parameter(torch.Tensor(self.n_head, f_in, f_out))
         self.a_src = Parameter(torch.Tensor(n_head, f_out, 1))
         # self.a_src = Parameter(torch.Tensor(n_head, f_out, 8))
@@ -36,7 +36,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         init.xavier_uniform_(self.a_src)
         init.xavier_uniform_(self.a_dst)
 
-    def forward(self, h, adj):
+    def forward_old5(self, h, adj):
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
@@ -51,8 +51,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn = torch.einsum("abce,abde->abcd", h_prime, h_prime)  # weibo AUC: 0.8251 Prec: 0.4869 Rec: 0.7387 F1: 0.5869
         # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))  # weibo AUC: 0.8245 Prec: 0.4834 Rec: 0.7556 F1: 0.5896
         attn_sdp = torch.einsum("abce,abde->abcd", h_prime, h_prime)/np.sqrt(h_prime.size()[-1])  # AUC: 0.8280 Prec: 0.4885 Rec: 0.7489 F1: 0.5913
-        # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))/np.sqrt(h_prime.size()[-1])
-        attn = attn_go * torch.sigmoid(attn_sdp)
+        # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))/np.sqrt(h_prime.size()[-1])  # weibo AUC: 0.8219 Prec: 0.4836 Rec: 0.7456 F1: 0.5866
+        attn = attn_go * torch.sigmoid(attn_sdp)  # AUC: 0.8324 Prec: 0.4911 Rec: 0.7550 F1: 0.5951
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
@@ -134,7 +134,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward_old2(self, h, adj):  # weibo AUC: 0.8299 Prec: 0.4970 Rec: 0.7343 F1: 0.5928
+    def forward(self, h, adj):  # weibo AUC: 0.8299 Prec: 0.4970 Rec: 0.7343 F1: 0.5928
         n = adj.size()[1]
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
@@ -144,6 +144,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
         # print("h_prime shape", h_prime.shape)
         attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+        attn = torch.tanh(attn)
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
