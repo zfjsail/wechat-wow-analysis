@@ -277,6 +277,12 @@ class BatchWrapDiffGATPool(nn.Module):
         if self.use_vertex_feature:
             n_units[0] += vertex_feature_dim
 
+        self.emb_vertex_feature = nn.Linear(vertex_feature_dim, 8)
+        self.emb_inf_feature = nn.Embedding(2, 8)
+        self.emb_pretrain = nn.Linear(pretrained_emb_dim, 8)
+
+        self.V = nn.Parameter(torch.randn(24, n_units[0]), requires_grad=True)
+
         self.layer_stack = nn.ModuleList()
         n_units[-1] = 5
         label_dim = 32
@@ -337,14 +343,28 @@ class BatchWrapDiffGATPool(nn.Module):
 
         return mm
 
+    def add_fm(self, x, emb, vertex_features):
+        x_inf = self.emb_inf_feature(x)
+        x_emb = self.emb_pretrain(emb)
+        x_vfeature = self.emb_vertex_feature(vertex_features)
+        x = torch.cat((x_inf, x_emb, x_vfeature))
+
+        out_1 = torch.matmul(x, self.V).pow(2).sum(2, keepdim=True) #S_1^2
+        out_2 = torch.matmul(x.pow(2), self.V.pow(2)).sum(2, keepdim=True) # S_2
+        out_inter = 0.5*(out_1 - out_2)
+        return out_inter
+
     def forward(self, x, adj, emb, vertex_features):
+
+        xx = self.add_fm(x, emb, vertex_features)
+
         if self.inst_norm:
             emb = self.norm(emb.transpose(1, 2)).transpose(1, 2)
         x = torch.cat((x, emb), dim=2)
         if self.use_vertex_feature:
             x = torch.cat((x, vertex_features), dim=2)
 
-        xx = x
+        # xx = x
         if self.use_prone:
             xx = self.added_forward(adj, xx)
 

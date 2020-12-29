@@ -36,7 +36,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         init.xavier_uniform_(self.a_src)
         init.xavier_uniform_(self.a_dst)
 
-    def forward(self, h, adj):
+    def forward_old5(self, h, adj):
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
@@ -58,7 +58,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # h_norm = torch.norm(h_prime, dim=3).unsqueeze(3) + 1e-6
         # h_scale = h_prime/h_norm
         # attn = torch.einsum("abce,abde->abcd", h_scale, h_scale)  # cosine sim weibo: AUC: 0.8115 Prec: 0.4677 Rec: 0.7342 F1: 0.5714
-        
+
         attn = attn_go + torch.sigmoid(attn_sdp)
 
         attn = self.leaky_relu(attn)
@@ -171,7 +171,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward_old1(self, h, adj):
+    def forward(self, h, adj):
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
@@ -180,9 +180,9 @@ class BatchMultiHeadGraphAttention(nn.Module):
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
         attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
         attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
-        # attn = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
-        #                                                                                2)  # bs x n_head x n x n
-        attn = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)  # half: weibo AUC: 0.8243 Prec: 0.4777 Rec: 0.7573 F1: 0.5858
+        attn = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
+                                                                                       2)  # bs x n_head x n x n
+        # attn = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)  # half: weibo AUC: 0.8243 Prec: 0.4777 Rec: 0.7573 F1: 0.5858
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
