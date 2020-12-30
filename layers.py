@@ -59,7 +59,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # h_scale = h_prime/h_norm
         # attn = torch.einsum("abce,abde->abcd", h_scale, h_scale)  # cosine sim weibo: AUC: 0.8115 Prec: 0.4677 Rec: 0.7342 F1: 0.5714
 
-        attn = attn_go + torch.sigmoid(attn_sdp)
+        attn = attn_go + torch.sigmoid(attn_sdp)  # weibo AUC: 0.8238 Prec: 0.4808 Rec: 0.7495 F1: 0.5858
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
