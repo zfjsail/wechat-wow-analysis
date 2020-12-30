@@ -383,7 +383,7 @@ class BatchWrapDiffGATPool(nn.Module):
             x_3 = torch.cat((x_2, vertex_features), dim=2)
 
         # xx = x
-        print("xx shape", xx.shape)
+        # print("xx shape", xx.shape)
         if self.use_prone:
             xx = self.added_forward(adj, xx)
 
