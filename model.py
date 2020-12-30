@@ -278,10 +278,10 @@ class BatchWrapDiffGATPool(nn.Module):
             n_units[0] += vertex_feature_dim
 
         self.emb_vertex_feature = nn.Linear(vertex_feature_dim, 8)
-        self.emb_inf_feature = nn.Embedding(2, 8)
+        self.emb_inf_feature = nn.Linear(2, 8)
         self.emb_pretrain = nn.Linear(pretrained_emb_dim, 8)
 
-        self.V = nn.Parameter(torch.randn(24, n_units[0]), requires_grad=True)
+        self.V = nn.Parameter(torch.randn(8, n_units[0]), requires_grad=True)
 
         self.layer_stack = nn.ModuleList()
         n_units[-1] = 5
@@ -365,6 +365,7 @@ class BatchWrapDiffGATPool(nn.Module):
             x = torch.cat((x, vertex_features), dim=2)
 
         # xx = x
+        print("xx shape", xx.shape)
         if self.use_prone:
             xx = self.added_forward(adj, xx)
 
