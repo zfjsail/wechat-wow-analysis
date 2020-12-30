@@ -382,7 +382,8 @@ class BatchWrapDiffGATPool(nn.Module):
         if self.use_vertex_feature:
             x_2 = torch.cat((x_2, vertex_features), dim=2)
 
-        xx = torch.cat((x_2, xx), dim=3)
+        xx = torch.cat((x_2, xx), dim=2)
+        # xx = x_2
 
         # xx = x
         # print("xx shape", xx.shape)
