@@ -293,7 +293,7 @@ class BatchWrapDiffGATPool(nn.Module):
         n_units[-1] = 5
         label_dim = 32
         # node_feature_input_dim = n_units[0]
-        node_feature_input_dim = 24
+        node_feature_input_dim = 32
 
         self.pool_layer = SoftPoolingGATEncoder(max_num_nodes=32, input_dim=node_feature_input_dim, hidden_dim=16,
                                                 embedding_dim=16, label_dim=label_dim, num_layers=2,
@@ -368,8 +368,8 @@ class BatchWrapDiffGATPool(nn.Module):
         fm_second_order_emb_square_sum = sum(fm_second_order_emb_square)  # x^2+y^2
         fm_second_order = (fm_sum_second_order_emb_square - fm_second_order_emb_square_sum) * 0.5
 
-        # out_inter = torch.cat((x_first_cat, fm_second_order), dim=2)
-        out_inter = x_first_cat
+        out_inter = torch.cat((x_first_cat, fm_second_order), dim=2)
+        # out_inter = x_first_cat
 
         return out_inter
 

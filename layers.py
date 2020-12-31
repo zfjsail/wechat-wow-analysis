@@ -141,20 +141,20 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    # def forward(self, h, adj):  # weibo AUC: 0.8299 Prec: 0.4970 Rec: 0.7343 F1: 0.5928
-    def forward_old2(self, h, adj):  # tanh before attn weibo: AUC: 0.8201 Prec: 0.4803 Rec: 0.7423 F1: 0.5832
+    def forward(self, h, adj):  # weibo AUC: 0.8299 Prec: 0.4970 Rec: 0.7343 F1: 0.5928
+    # def forward_old2(self, h, adj):  # tanh before attn weibo: AUC: 0.8201 Prec: 0.4803 Rec: 0.7423 F1: 0.5832
         n = adj.size()[1]
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
 
-        # attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
-        attn_left = torch.matmul(torch.tanh(h_prime), self.w_bi).squeeze(1)  # bs x n x f_out
+        attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
+        # attn_left = torch.matmul(torch.tanh(h_prime), self.w_bi).squeeze(1)  # bs x n x f_out
         # print("h_prime shape", h_prime.shape)
-        # attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
-        attn = torch.bmm(attn_left, torch.tanh(h_prime).squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
-        attn = torch.tanh(attn)  # weibo AUC: 0.8234 Prec: 0.4820 Rec: 0.7455 F1: 0.5854
+        attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+        # attn = torch.bmm(attn_left, torch.tanh(h_prime).squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+        # attn = torch.tanh(attn)  # weibo AUC: 0.8234 Prec: 0.4820 Rec: 0.7455 F1: 0.5854
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
@@ -171,7 +171,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward(self, h, adj):
+    def forward_old1(self, h, adj):
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
