@@ -62,8 +62,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn = attn_go + torch.sigmoid(attn_sdp)  # weibo AUC: 0.8238 Prec: 0.4808 Rec: 0.7495 F1: 0.5858
         attn_with_ego = torch.einsum("abe,abde->abd", h_prime[:, :, -1, :], h_prime).unsqueeze(3).expand(-1, -1, -1, n).permute(0, 1, 3, 2)  #todo -1 is for weibo
         attn_with_ego = attn_with_ego/np.sqrt(h_prime.size()[-1])
-        attn = attn_go * torch.sigmoid(attn_with_ego)
-        # attn = attn_go
+        # attn = attn_go * torch.sigmoid(attn_with_ego)
+        attn = attn_go
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
