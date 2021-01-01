@@ -48,11 +48,13 @@ class BatchMultiHeadGraphAttention(nn.Module):
         attn_go = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
                                                                                        2)  # bs x n_head x n x n
 
+        attn_half = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)
+
         # attn = torch.einsum("abce,abde->abcd", h_prime, h_prime)  # weibo AUC: 0.8251 Prec: 0.4869 Rec: 0.7387 F1: 0.5869
         # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))  # weibo AUC: 0.8245 Prec: 0.4834 Rec: 0.7556 F1: 0.5896
-        attn_sdp = torch.einsum("abce,abde->abcd", h_prime, h_prime)/np.sqrt(h_prime.size()[-1])  # AUC: 0.8280 Prec: 0.4885 Rec: 0.7489 F1: 0.5913
+        # attn_sdp = torch.einsum("abce,abde->abcd", h_prime, h_prime)/np.sqrt(h_prime.size()[-1])  # AUC: 0.8280 Prec: 0.4885 Rec: 0.7489 F1: 0.5913
         # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))/np.sqrt(h_prime.size()[-1])  # weibo AUC: 0.8219 Prec: 0.4836 Rec: 0.7456 F1: 0.5866
-        attn = attn_go * torch.sigmoid(attn_sdp)  # weibo lr=0.01 AUC: 0.8324 Prec: 0.4911 Rec: 0.7550 F1: 0.5951
+        # attn = attn_go * torch.sigmoid(attn_sdp)  # weibo lr=0.01 AUC: 0.8324 Prec: 0.4911 Rec: 0.7550 F1: 0.5951
         # attn = attn_go * torch.sigmoid(attn_sdp)  # weibo lr=0.1 AUC: 0.8322 Prec: 0.4963 Rec: 0.7413 F1: 0.5946
 
         # h_norm = torch.norm(h_prime, dim=3).unsqueeze(3) + 1e-6
@@ -64,6 +66,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn_with_ego = attn_with_ego/np.sqrt(h_prime.size()[-1])
         # attn = attn_go * torch.sigmoid(attn_with_ego)
         # attn = attn_go
+        attn = attn_half
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
