@@ -141,8 +141,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward(self, h, adj):  # weibo AUC: 0.8299 Prec: 0.4970 Rec: 0.7343 F1: 0.5928
-    # def forward_old2(self, h, adj):  # tanh before attn weibo: AUC: 0.8201 Prec: 0.4803 Rec: 0.7423 F1: 0.5832
+    # def forward(self, h, adj):  # weibo AUC: 0.8299 Prec: 0.4970 Rec: 0.7343 F1: 0.5928
+    def forward_old2(self, h, adj):  # tanh before attn weibo: AUC: 0.8201 Prec: 0.4803 Rec: 0.7423 F1: 0.5832
         n = adj.size()[1]
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
@@ -171,7 +171,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward_old1(self, h, adj):
+    def forward(self, h, adj):
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
