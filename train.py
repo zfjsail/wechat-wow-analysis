@@ -62,7 +62,7 @@ parser.add_argument('--class-weight-balanced', action='store_true', default=True
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
 parser.add_argument('--label-type', type=str, default="like", help="Label type")
-parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
+parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
@@ -131,6 +131,13 @@ else:
     vertex_feature_dim = influence_dataset.vertex_features_dim
     emb_origin = influence_dataset.get_embedding()
     vertex_features = influence_dataset.get_vertex_features()
+
+
+def mae_loss(output, target, class_weight):
+    output = output[:, 1]
+    w = class_weight[target]
+    return torch.mean(torch.abs(output - target) * w)
+
 
 n_units = [feature_dim] + [int(x) for x in args.hidden_units.strip().split(",")] + [n_classes]
 logger.info("feature dimension=%d", feature_dim)
@@ -207,6 +214,7 @@ def evaluate(epoch, loader, thr=None, return_best_thr=False, log_desc='valid_'):
         if args.model == "gat":
             output = output[:, 0, :]
         loss_batch = F.nll_loss(output, labels, class_weight)
+        # loss_batch = mae_loss(output, labels, class_weight)
         loss += bs * loss_batch.item()
 
         y_true += labels.data.tolist()
@@ -266,6 +274,7 @@ def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
         if args.model == "gat":
             output = output[:, 0, :]
         loss_train = F.nll_loss(output, labels, class_weight)
+        # loss_train = mae_loss(output, labels, class_weight)
         loss += bs * loss_train.item()
         total += bs
         loss_train.backward()

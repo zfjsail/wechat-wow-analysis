@@ -10,10 +10,15 @@ from torch.nn.parameter import Parameter
 class BatchMultiHeadGraphAttention(nn.Module):
     def __init__(self, n_head, f_in, f_out, attn_dropout, attn_mask=True, bias=True):
         super(BatchMultiHeadGraphAttention, self).__init__()
+        # self.n_head = 1
         self.n_head = n_head
-        self.w = Parameter(torch.Tensor(n_head, f_in, f_out))
+        self.w = Parameter(torch.Tensor(self.n_head, f_in, f_out))
         self.a_src = Parameter(torch.Tensor(n_head, f_out, 1))
+        # self.a_src = Parameter(torch.Tensor(n_head, f_out, 8))
         self.a_dst = Parameter(torch.Tensor(n_head, f_out, 1))
+        # self.a_dst = Parameter(torch.Tensor(n_head, f_out, 8))
+
+        self.w_bi = Parameter(torch.Tensor(1, f_out, f_out))
 
         self.attn_mask = attn_mask
 
@@ -27,11 +32,152 @@ class BatchMultiHeadGraphAttention(nn.Module):
             self.register_parameter('bias', None)
 
         init.xavier_uniform_(self.w)
+        init.xavier_uniform_(self.w_bi)
         init.xavier_uniform_(self.a_src)
         init.xavier_uniform_(self.a_dst)
 
     def forward(self, h, adj):
         n = adj.size()[1]
+        # print("h", h.shape)
+        if len(h.shape) == 3:
+            h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
+        else:
+            h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
+        attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
+        attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
+        attn_go = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
+                                                                                       2)  # bs x n_head x n x n
+
+        # attn = torch.einsum("abce,abde->abcd", h_prime, h_prime)  # weibo AUC: 0.8251 Prec: 0.4869 Rec: 0.7387 F1: 0.5869
+        # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))  # weibo AUC: 0.8245 Prec: 0.4834 Rec: 0.7556 F1: 0.5896
+        # attn_sdp = torch.einsum("abce,abde->abcd", h_prime, h_prime)/np.sqrt(h_prime.size()[-1])  # AUC: 0.8280 Prec: 0.4885 Rec: 0.7489 F1: 0.5913
+        # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))/np.sqrt(h_prime.size()[-1])  # weibo AUC: 0.8219 Prec: 0.4836 Rec: 0.7456 F1: 0.5866
+        # attn = attn_go * torch.sigmoid(attn_sdp)  # weibo lr=0.01 AUC: 0.8324 Prec: 0.4911 Rec: 0.7550 F1: 0.5951
+        # attn = attn_go * torch.sigmoid(attn_sdp)  # weibo lr=0.1 AUC: 0.8322 Prec: 0.4963 Rec: 0.7413 F1: 0.5946
+
+        # h_norm = torch.norm(h_prime, dim=3).unsqueeze(3) + 1e-6
+        # h_scale = h_prime/h_norm
+        # attn = torch.einsum("abce,abde->abcd", h_scale, h_scale)  # cosine sim weibo: AUC: 0.8115 Prec: 0.4677 Rec: 0.7342 F1: 0.5714
+
+        # attn = attn_go + torch.sigmoid(attn_sdp)  # weibo AUC: 0.8238 Prec: 0.4808 Rec: 0.7495 F1: 0.5858
+        attn_with_ego = torch.einsum("abe,abde->abd", h_prime[:, :, -1, :], h_prime).unsqueeze(3).expand(-1, -1, -1, n).permute(0, 1, 3, 2)  #todo -1 is for weibo
+        attn_with_ego = attn_with_ego/np.sqrt(h_prime.size()[-1])
+        attn = attn_go * torch.sigmoid(attn_with_ego)
+        # attn = attn_go
+
+        attn = self.leaky_relu(attn)
+        mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
+
+        if self.attn_mask:
+            attn.data.masked_fill_(mask.bool(), float("-inf"))
+
+        attn = self.softmax(attn)  # bs x n_head x n x n
+        if self.training:
+            attn = self.dropout(attn)
+        output = torch.matmul(attn, h_prime)  # bs x n_head x n x f_out
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def forward_old4(self, h, adj):  # weibo bs = 256 AUC: 0.8331 Prec: 0.5027 Rec: 0.7336 F1: 0.5966
+        n = adj.size()[1]
+        # print("h", h.shape)
+        if len(h.shape) == 3:
+            h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
+        else:
+            h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
+        # h_expand = h_prime.unsqueeze(3).expand(-1, -1, -1, n, -1)
+        # print("h_prime", h_prime.shape)
+        h_dot = torch.einsum("abce,abde->abcde", h_prime, h_prime)
+        # attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
+        # attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
+        # attn = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
+        #                                                                                2)  # bs x n_head x n x n
+        # print("----", h_dot.shape, self.a_src.shape)
+        if self.a_src.shape[0] == h_dot.shape[1]:
+            attn = torch.einsum("abcde,bef->abcdf", h_dot, self.a_src).squeeze(4)
+        else:
+            attn = torch.matmul(h_dot, self.a_src).squeeze(4)
+        attn = self.leaky_relu(attn)
+        mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
+
+        if self.attn_mask:
+            attn.data.masked_fill_(mask.bool(), float("-inf"))
+
+        attn = self.softmax(attn)  # bs x n_head x n x n
+        if self.training:
+            attn = self.dropout(attn)
+        output = torch.matmul(attn, h_prime)  # bs x n_head x n x f_out
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def forward_old3(self, h, adj):  # weibo AUC: 0.8309 Prec: 0.4980 Rec: 0.7366 F1: 0.5942
+        n = adj.size()[1]
+        bs = adj.size()[0]
+        # print("h", h.shape)
+        if len(h.shape) == 3:
+            h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
+        else:
+            h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
+        attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 8
+        attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 8
+        attn_src = attn_src.view(-1, n, 8)
+        attn_dst = attn_dst.view(-1, n, 8)
+        attn = torch.bmm(attn_src, attn_dst.permute(0, 2, 1))  # (bs*n_head) x n x n
+        attn = attn.view(bs, -1, n, n)
+        # print("n_head", self.n_head, attn.shape)
+
+        attn = self.leaky_relu(attn)
+        mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
+
+        if self.attn_mask:
+            attn.data.masked_fill_(mask.bool(), float("-inf"))
+
+        attn = self.softmax(attn)  # bs x n_head x n x n
+        if self.training:
+            attn = self.dropout(attn)
+        output = torch.matmul(attn, h_prime)  # bs x n_head x n x f_out
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    # def forward(self, h, adj):  # weibo AUC: 0.8299 Prec: 0.4970 Rec: 0.7343 F1: 0.5928
+    def forward_old2(self, h, adj):  # tanh before attn weibo: AUC: 0.8201 Prec: 0.4803 Rec: 0.7423 F1: 0.5832
+        n = adj.size()[1]
+        if len(h.shape) == 3:
+            h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
+        else:
+            h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
+
+        attn_left = torch.matmul(h_prime, self.w_bi).squeeze(1)  # bs x n x f_out
+        # attn_left = torch.matmul(torch.tanh(h_prime), self.w_bi).squeeze(1)  # bs x n x f_out
+        # print("h_prime shape", h_prime.shape)
+        attn = torch.bmm(attn_left, h_prime.squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+        # attn = torch.bmm(attn_left, torch.tanh(h_prime).squeeze(1).permute(0, 2, 1)).unsqueeze(1)  # bs x n x n
+        # attn = torch.tanh(attn)  # weibo AUC: 0.8234 Prec: 0.4820 Rec: 0.7455 F1: 0.5854
+
+        attn = self.leaky_relu(attn)
+        mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
+
+        if self.attn_mask:
+            attn.data.masked_fill_(mask.bool(), float("-inf"))
+
+        attn = self.softmax(attn)  # bs x n_head x n x n
+        if self.training:
+            attn = self.dropout(attn)
+        output = torch.matmul(attn, h_prime)  # bs x n_head x n x f_out
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def forward_old1(self, h, adj):
+        n = adj.size()[1]
+        # print("h", h.shape)
         if len(h.shape) == 3:
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
@@ -40,6 +186,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
         attn = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
                                                                                        2)  # bs x n_head x n x n
+        # attn = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)  # half: weibo AUC: 0.8243 Prec: 0.4777 Rec: 0.7573 F1: 0.5858
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
