@@ -46,7 +46,7 @@ parser.add_argument('--hidden-units', type=str, default="16,8",
                     help="Hidden units in each hidden layer, splitted with comma")
 parser.add_argument('--heads', type=str, default="8,8,1",
                     help="Heads in each layer, splitted with comma")  # adjust
-parser.add_argument('--batch', type=int, default=256, help="Batch size")
+parser.add_argument('--batch', type=int, default=512, help="Batch size")
 parser.add_argument('--dim', type=int, default=64, help="Embedding dimension")
 parser.add_argument('--check-point', type=int, default=10, help="Check point")
 parser.add_argument('--instance-normalization', action='store_true', default=False,

@@ -92,8 +92,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
         # h_expand = h_prime.unsqueeze(3).expand(-1, -1, -1, n, -1)
         # print("h_prime", h_prime.shape)
-        # h_dot = torch.einsum("abce,abde->abcde", h_prime, h_prime)
-        h_dot = torch.einsum("abce,abde->abcde", torch.tanh(h_prime), torch.tanh(h_prime))
+        h_dot = torch.einsum("abce,abde->abcde", h_prime, h_prime)
+        # h_dot = torch.einsum("abce,abde->abcde", torch.tanh(h_prime), torch.tanh(h_prime))
         # attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
         # attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
         # attn = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
