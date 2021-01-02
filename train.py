@@ -36,7 +36,7 @@ parser.add_argument('--model', type=str, default='diffpool_prone', help="models 
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.03, help='Initial learning rate.')  # wow: 0.01, click: 0.1
+parser.add_argument('--lr', type=float, default=0.02, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--weight-decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--dropout', type=float, default=0.4,
@@ -80,115 +80,11 @@ print("arg use vertex feature", args.use_vertex_feature)
 #     args.theta = 7
 print(args)
 
-np.random.seed(args.seed)
-torch.manual_seed(args.seed)
-if args.cuda:
-    torch.cuda.manual_seed(args.seed)
-
-if args.data == "wechat":
-    influence_dataset_train = InfluenceDatasetWeChat(args.file_dir, args.dim, args.seed, args.shuffle, args.label_type,
-                                                     args.debug, "train")
-    influence_dataset_valid = InfluenceDatasetWeChat(args.file_dir, args.dim, args.seed, args.shuffle, args.label_type,
-                                                     args.debug, "valid")
-    influence_dataset_test = InfluenceDatasetWeChat(args.file_dir, args.dim, args.seed, args.shuffle, args.label_type,
-                                                    args.debug, "test")
-
-    N = len(influence_dataset_train)
-    logger.info("Number of training samples: %d", N)
-    Nvalid = len(influence_dataset_valid)
-    Ntest = len(influence_dataset_test)
-    n_classes = 2
-    class_weight = influence_dataset_train.get_class_weight() \
-        if args.class_weight_balanced else torch.ones(n_classes)
-    logger.info("class_weight=%.2f:%.2f", class_weight[0], class_weight[1])
-    feature_dim = influence_dataset_train.get_feature_dimension()
-
-    train_loader = DataLoader(influence_dataset_train, batch_size=args.batch,
-                              sampler=ChunkSampler(N, 0))
-    valid_loader = DataLoader(influence_dataset_valid, batch_size=args.batch,
-                              sampler=ChunkSampler(Nvalid, 0))
-    test_loader = DataLoader(influence_dataset_test, batch_size=args.batch,
-                             sampler=ChunkSampler(Ntest, 0))
-    vertex_feature_dim = influence_dataset_train.vertex_features_dim
-    emb_origin = influence_dataset_train.get_embedding()
-    vertex_features = influence_dataset_train.get_vertex_features()
-else:
-    args.file_dir = join(settings.DATA_DIR, args.data)
-    influence_dataset = InfluenceDatasetOthers(args.file_dir, args.seed, args.shuffle)
-    N = len(influence_dataset)
-    train_start, valid_start, test_start = \
-        0, int(N * args.train_ratio / 100), int(N * (args.train_ratio + args.valid_ratio) / 100)
-    train_loader = DataLoader(influence_dataset, batch_size=args.batch,
-                              sampler=ChunkSampler(valid_start - train_start, 0))
-    valid_loader = DataLoader(influence_dataset, batch_size=args.batch,
-                              sampler=ChunkSampler(test_start - valid_start, valid_start))
-    test_loader = DataLoader(influence_dataset, batch_size=args.batch,
-                             sampler=ChunkSampler(N - test_start, test_start))
-    feature_dim = influence_dataset.get_feature_dimension()
-    n_classes = 2
-    class_weight = influence_dataset.get_class_weight() \
-        if args.class_weight_balanced else torch.ones(n_classes)
-    vertex_feature_dim = influence_dataset.vertex_features_dim
-    emb_origin = influence_dataset.get_embedding()
-    vertex_features = influence_dataset.get_vertex_features()
-
 
 def mae_loss(output, target, class_weight):
     output = output[:, 1]
     w = class_weight[target]
     return torch.mean(torch.abs(output - target) * w)
-
-
-n_units = [feature_dim] + [int(x) for x in args.hidden_units.strip().split(",")] + [n_classes]
-logger.info("feature dimension=%d", feature_dim)
-logger.info("number of classes=%d", n_classes)
-
-n_heads = [int(x) for x in args.heads.strip().split(",")]
-model = None
-if args.model == "gat":
-    model = BatchGAT(pretrained_emb_dim=args.dim,
-                     vertex_feature_dim=vertex_feature_dim,
-                     use_vertex_feature=args.use_vertex_feature,
-                     n_units=n_units, n_heads=n_heads,
-                     dropout=args.dropout, instance_normalization=args.instance_normalization)
-elif args.model == "diffpool_prone":
-    model = BatchWrapDiffGATPool(pretrained_emb_dim=args.dim,
-                                 vertex_feature_dim=vertex_feature_dim,
-                                 use_vertex_feature=args.use_vertex_feature,
-                                 n_units=n_units, n_heads=n_heads,
-                                 dropout=args.dropout, instance_normalization=args.instance_normalization,
-                                 use_diffpool=True, use_deepinf=False, use_prone=True,
-                                 mu=args.mu, theta=args.theta,
-                                 attn_dropout=args.attn_dropout,
-                                 num_pooling=args.num_pooling,
-                                 args=args)
-elif args.model == "diffpool":
-    model = BatchWrapDiffGATPool(pretrained_emb_dim=args.dim,
-                                 vertex_feature_dim=vertex_feature_dim,
-                                 use_vertex_feature=args.use_vertex_feature,
-                                 n_units=n_units, n_heads=n_heads,
-                                 dropout=args.dropout, instance_normalization=args.instance_normalization,
-                                 use_diffpool=True, use_deepinf=False, use_prone=False,
-                                 mu=args.mu, theta=args.theta,
-                                 args=args)
-
-print(model)
-if args.cuda:
-    model.cuda()
-    class_weight = class_weight.cuda()
-
-emb = torch.nn.Embedding(emb_origin.size(0), emb_origin.size(1))
-emb.weight = torch.nn.Parameter(emb_origin)
-emb.weight.requires_grad = False
-
-params = [{'params': filter(lambda p: p.requires_grad, model.parameters())
-if args.model != "gat" else model.layer_stack.parameters()}]
-optimizer = optim.Adagrad(params, lr=args.lr, weight_decay=args.weight_decay)
-
-best_epoch = -1
-best_auc = 0
-best_valid = [0] * 4
-best_test = [0] * 4
 
 
 def evaluate(epoch, loader, thr=None, return_best_thr=False, log_desc='valid_'):
@@ -305,21 +201,134 @@ def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
                     args.model, args.mu, args.theta, best_test[0], best_test[1], best_test[2], best_test[3])
 
 
-# eval first
-best_thr1, _ = evaluate(0, valid_loader, return_best_thr=True, log_desc='valid_')
-evaluate(0, test_loader, thr=best_thr1, log_desc='test_')
+seeds = [0, 1, 2]
 
-# Train model
-t_total = time.time()
-logger.info("training...")
-for epoch in range(args.epochs):
-    train(epoch, train_loader, valid_loader, test_loader)
-logger.info("optimization Finished!")
-logger.info("total time elapsed: {:.4f}s".format(time.time() - t_total))
+for seed in seeds:
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("seed", seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if args.cuda:
+        torch.cuda.manual_seed(args.seed)
 
-logger.info("--------------------------------------------")
-logger.info("best is in epoch %d", best_epoch)
-logger.info("model %s, best validation until now: AUC: %.4f Prec: %.4f Rec: %.4f F1: %.4f",
-            args.model, best_valid[0], best_valid[1], best_valid[2], best_valid[3])
-logger.info("model %s, Best test until now: AUC: %.4f Prec: %.4f Rec: %.4f F1: %.4f",
-            args.model, best_test[0], best_test[1], best_test[2], best_test[3])
+    if args.data == "wechat":
+        influence_dataset_train = InfluenceDatasetWeChat(args.file_dir, args.dim, args.seed, args.shuffle,
+                                                         args.label_type,
+                                                         args.debug, "train")
+        influence_dataset_valid = InfluenceDatasetWeChat(args.file_dir, args.dim, args.seed, args.shuffle,
+                                                         args.label_type,
+                                                         args.debug, "valid")
+        influence_dataset_test = InfluenceDatasetWeChat(args.file_dir, args.dim, args.seed, args.shuffle,
+                                                        args.label_type,
+                                                        args.debug, "test")
+
+        N = len(influence_dataset_train)
+        logger.info("Number of training samples: %d", N)
+        Nvalid = len(influence_dataset_valid)
+        Ntest = len(influence_dataset_test)
+        n_classes = 2
+        class_weight = influence_dataset_train.get_class_weight() \
+            if args.class_weight_balanced else torch.ones(n_classes)
+        logger.info("class_weight=%.2f:%.2f", class_weight[0], class_weight[1])
+        feature_dim = influence_dataset_train.get_feature_dimension()
+
+        train_loader = DataLoader(influence_dataset_train, batch_size=args.batch,
+                                  sampler=ChunkSampler(N, 0))
+        valid_loader = DataLoader(influence_dataset_valid, batch_size=args.batch,
+                                  sampler=ChunkSampler(Nvalid, 0))
+        test_loader = DataLoader(influence_dataset_test, batch_size=args.batch,
+                                 sampler=ChunkSampler(Ntest, 0))
+        vertex_feature_dim = influence_dataset_train.vertex_features_dim
+        emb_origin = influence_dataset_train.get_embedding()
+        vertex_features = influence_dataset_train.get_vertex_features()
+    else:
+        args.file_dir = join(settings.DATA_DIR, args.data)
+        influence_dataset = InfluenceDatasetOthers(args.file_dir, args.seed, args.shuffle)
+        N = len(influence_dataset)
+        train_start, valid_start, test_start = \
+            0, int(N * args.train_ratio / 100), int(N * (args.train_ratio + args.valid_ratio) / 100)
+        train_loader = DataLoader(influence_dataset, batch_size=args.batch,
+                                  sampler=ChunkSampler(valid_start - train_start, 0))
+        valid_loader = DataLoader(influence_dataset, batch_size=args.batch,
+                                  sampler=ChunkSampler(test_start - valid_start, valid_start))
+        test_loader = DataLoader(influence_dataset, batch_size=args.batch,
+                                 sampler=ChunkSampler(N - test_start, test_start))
+        feature_dim = influence_dataset.get_feature_dimension()
+        n_classes = 2
+        class_weight = influence_dataset.get_class_weight() \
+            if args.class_weight_balanced else torch.ones(n_classes)
+        vertex_feature_dim = influence_dataset.vertex_features_dim
+        emb_origin = influence_dataset.get_embedding()
+        vertex_features = influence_dataset.get_vertex_features()
+
+    n_units = [feature_dim] + [int(x) for x in args.hidden_units.strip().split(",")] + [n_classes]
+    logger.info("feature dimension=%d", feature_dim)
+    logger.info("number of classes=%d", n_classes)
+
+    n_heads = [int(x) for x in args.heads.strip().split(",")]
+    model = None
+    if args.model == "gat":
+        model = BatchGAT(pretrained_emb_dim=args.dim,
+                         vertex_feature_dim=vertex_feature_dim,
+                         use_vertex_feature=args.use_vertex_feature,
+                         n_units=n_units, n_heads=n_heads,
+                         dropout=args.dropout, instance_normalization=args.instance_normalization)
+    elif args.model == "diffpool_prone":
+        model = BatchWrapDiffGATPool(pretrained_emb_dim=args.dim,
+                                     vertex_feature_dim=vertex_feature_dim,
+                                     use_vertex_feature=args.use_vertex_feature,
+                                     n_units=n_units, n_heads=n_heads,
+                                     dropout=args.dropout, instance_normalization=args.instance_normalization,
+                                     use_diffpool=True, use_deepinf=False, use_prone=True,
+                                     mu=args.mu, theta=args.theta,
+                                     attn_dropout=args.attn_dropout,
+                                     num_pooling=args.num_pooling,
+                                     args=args)
+    elif args.model == "diffpool":
+        model = BatchWrapDiffGATPool(pretrained_emb_dim=args.dim,
+                                     vertex_feature_dim=vertex_feature_dim,
+                                     use_vertex_feature=args.use_vertex_feature,
+                                     n_units=n_units, n_heads=n_heads,
+                                     dropout=args.dropout, instance_normalization=args.instance_normalization,
+                                     use_diffpool=True, use_deepinf=False, use_prone=False,
+                                     mu=args.mu, theta=args.theta,
+                                     args=args)
+
+    print(model)
+    if args.cuda:
+        model.cuda()
+        class_weight = class_weight.cuda()
+
+    emb = torch.nn.Embedding(emb_origin.size(0), emb_origin.size(1))
+    emb.weight = torch.nn.Parameter(emb_origin)
+    emb.weight.requires_grad = False
+
+    params = [{'params': filter(lambda p: p.requires_grad, model.parameters())
+    if args.model != "gat" else model.layer_stack.parameters()}]
+    optimizer = optim.Adagrad(params, lr=args.lr, weight_decay=args.weight_decay)
+
+    best_epoch = -1
+    best_auc = 0
+    best_valid = [0] * 4
+    best_test = [0] * 4
+
+    # eval first
+    best_thr1, _ = evaluate(0, valid_loader, return_best_thr=True, log_desc='valid_')
+    evaluate(0, test_loader, thr=best_thr1, log_desc='test_')
+
+    # Train model
+    t_total = time.time()
+    logger.info("training...")
+    for epoch in range(args.epochs):
+        train(epoch, train_loader, valid_loader, test_loader)
+    logger.info("optimization Finished!")
+    logger.info("total time elapsed: {:.4f}s".format(time.time() - t_total))
+
+    logger.info("--------------------------------------------")
+    logger.info("best is in epoch %d", best_epoch)
+    logger.info("model %s, best validation until now: AUC: %.4f Prec: %.4f Rec: %.4f F1: %.4f",
+                args.model, best_valid[0], best_valid[1], best_valid[2], best_valid[3])
+    logger.info("model %s, Best test until now: AUC: %.4f Prec: %.4f Rec: %.4f F1: %.4f",
+                args.model, best_test[0], best_test[1], best_test[2], best_test[3])
