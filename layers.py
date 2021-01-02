@@ -36,7 +36,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         init.xavier_uniform_(self.a_src)
         init.xavier_uniform_(self.a_dst)
 
-    def forward(self, h, adj):
+    def forward_old5(self, h, adj):
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
@@ -83,7 +83,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward_old4(self, h, adj):  # weibo bs = 256 AUC: 0.8331 Prec: 0.5027 Rec: 0.7336 F1: 0.5966
+    def forward(self, h, adj):  # weibo bs = 256 AUC: 0.8331 Prec: 0.5027 Rec: 0.7336 F1: 0.5966
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
