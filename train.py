@@ -201,7 +201,7 @@ def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
                     args.model, args.mu, args.theta, best_test[0], best_test[1], best_test[2], best_test[3])
 
 
-seeds = [0, 1, 2]
+seeds = [0]
 
 for seed in seeds:
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
