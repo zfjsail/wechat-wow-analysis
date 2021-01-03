@@ -36,7 +36,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         init.xavier_uniform_(self.a_src)
         init.xavier_uniform_(self.a_dst)
 
-    def forward_old5(self, h, adj):
+    def forward(self, h, adj):
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
@@ -46,6 +46,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
         attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
         attn_go = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
+                                                                                       2)  # bs x n_head x n x n
+        attn_2_order = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
                                                                                        2)  # bs x n_head x n x n
 
         attn_half = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)
@@ -65,8 +67,9 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn_with_ego = torch.einsum("abe,abde->abd", h_prime[:, :, -1, :], h_prime).unsqueeze(3).expand(-1, -1, -1, n).permute(0, 1, 3, 2)  #todo -1 is for weibo
         # attn_with_ego = attn_with_ego/np.sqrt(h_prime.size()[-1])
         # attn = attn_go * torch.sigmoid(attn_with_ego)
-        attn = attn_go
+        # attn = attn_go
         # attn = attn_half
+        attn = attn_2_order
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
@@ -83,7 +86,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         else:
             return output
 
-    def forward(self, h, adj):  # weibo bs = 256 AUC: 0.8331 Prec: 0.5027 Rec: 0.7336 F1: 0.5966
+    def forward_old4(self, h, adj):  # weibo bs = 256 AUC: 0.8331 Prec: 0.5027 Rec: 0.7336 F1: 0.5966
         n = adj.size()[1]
         # print("h", h.shape)
         if len(h.shape) == 3:
