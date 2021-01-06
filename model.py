@@ -276,15 +276,18 @@ class BatchWrapDiffGATPool(nn.Module):
         self.use_vertex_feature = use_vertex_feature
         if self.use_vertex_feature:
             n_units[0] += vertex_feature_dim
+            
+        first_order_dim = 16
+        second_order_dim = 16
 
-        self.emb_vertex_feature = nn.Linear(vertex_feature_dim, 8)
-        self.emb_inf_feature = nn.Linear(2, 8)
-        self.emb_pretrain = nn.Linear(pretrained_emb_dim, 8)
+        self.emb_vertex_feature = nn.Linear(vertex_feature_dim, first_order_dim)
+        self.emb_inf_feature = nn.Linear(2, first_order_dim)
+        self.emb_pretrain = nn.Linear(pretrained_emb_dim, first_order_dim)
         self.emb_3 = nn.ModuleList([self.emb_inf_feature, self.emb_pretrain, self.emb_vertex_feature])
         self.emb_second_order = nn.ModuleList([
-            nn.Linear(2, 8),
-            nn.Linear(pretrained_emb_dim, 8),
-            nn.Linear(vertex_feature_dim, 8)
+            nn.Linear(2, second_order_dim),
+            nn.Linear(pretrained_emb_dim, second_order_dim),
+            nn.Linear(vertex_feature_dim, second_order_dim)
         ])
 
         self.V = nn.Parameter(torch.randn(8, n_units[0]), requires_grad=True)
@@ -292,8 +295,8 @@ class BatchWrapDiffGATPool(nn.Module):
         self.layer_stack = nn.ModuleList()
         n_units[-1] = 5
         label_dim = 32
-        # node_feature_input_dim = n_units[0]
-        node_feature_input_dim = 32
+        # node_feature_input_dim = n_units[0] + 8
+        node_feature_input_dim = first_order_dim*3 + second_order_dim
 
         self.pool_layer = SoftPoolingGATEncoder(max_num_nodes=32, input_dim=node_feature_input_dim, hidden_dim=16,
                                                 embedding_dim=16, label_dim=label_dim, num_layers=2,
@@ -370,6 +373,7 @@ class BatchWrapDiffGATPool(nn.Module):
 
         out_inter = torch.cat((x_first_cat, fm_second_order), dim=2)
         # out_inter = x_first_cat
+        # out_inter = fm_second_order
 
         return out_inter
 
