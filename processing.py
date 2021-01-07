@@ -98,7 +98,7 @@ def gen_wl_features(dataset="weibo"):
                     else:
                         edge_str += "{},{}|".format(v1_map, v2_map)
 
-                if edge_str[-1] == "|":
+                if len(edge_str) and edge_str[-1] == "|":
                     edge_str = edge_str[:-1]
 
                 wf.write(edge_str + "\n")
@@ -106,5 +106,5 @@ def gen_wl_features(dataset="weibo"):
 
 
 if __name__ == "__main__":
-    gen_wl_features(dataset="weibo")
+    gen_wl_features(dataset="wechat")
     logger.info("done")
