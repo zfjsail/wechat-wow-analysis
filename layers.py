@@ -77,8 +77,8 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn_with_ego = torch.einsum("abe,abde->abd", h_prime[:, :, -1, :], h_prime).unsqueeze(3).expand(-1, -1, -1, n).permute(0, 1, 3, 2)  #todo -1 is for weibo
         # attn_with_ego = attn_with_ego/np.sqrt(h_prime.size()[-1])
         # attn = attn_go * torch.sigmoid(attn_with_ego)
-        # attn = attn_go
-        attn = attn_go * np.sqrt(f_out)
+        attn = attn_go
+        # attn = attn_go * np.sqrt(f_out)
         # attn = attn_half
         # attn = attn_2_order
         # attn = attn_2_order_scale
