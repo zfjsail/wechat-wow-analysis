@@ -47,16 +47,18 @@ class BatchMultiHeadGraphAttention(nn.Module):
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
-        # attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
-        attn_src = torch.matmul(torch.tanh(h_prime), self.a_src) + self.a_src_bias  # bs x n_head x n x 1
+        f_out = h_prime.size()[-1]
+        attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
+        # attn_src = torch.matmul(torch.tanh(h_prime), self.a_src) + self.a_src_bias  # bs x n_head x n x 1
         # attn_src = torch.matmul(h_prime, self.a_src)  # bs x n_head x n x 1
-        # attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
-        attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst) + self.a_dst_bias  # bs x n_head x n x 1
+        attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
+        # attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst) + self.a_dst_bias  # bs x n_head x n x 1
         # attn_dst = torch.matmul(h_prime, self.a_dst)  # bs x n_head x n x 1
         attn_go = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
                                                                                        2)  # bs x n_head x n x n
-        attn_2_order = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
-                                                                                       2)  # bs x n_head x n x n
+        attn_2_order = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)  # bs x n_head x n x n
+        # attn_2_order_scale = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)/np.sqrt(f_out)  # bs x n_head x n x n
+        attn_2_order_scale = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2) * np.sqrt(f_out)  # bs x n_head x n x n
 
         attn_half = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)
 
@@ -76,8 +78,10 @@ class BatchMultiHeadGraphAttention(nn.Module):
         # attn_with_ego = attn_with_ego/np.sqrt(h_prime.size()[-1])
         # attn = attn_go * torch.sigmoid(attn_with_ego)
         # attn = attn_go
+        attn = attn_go * np.sqrt(f_out)
         # attn = attn_half
-        attn = attn_2_order
+        # attn = attn_2_order
+        # attn = attn_2_order_scale
 
         attn = self.leaky_relu(attn)
         mask = 1 - adj.unsqueeze(1)  # bs x 1 x n x n
