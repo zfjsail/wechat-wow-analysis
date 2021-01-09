@@ -61,11 +61,11 @@ parser.add_argument('--class-weight-balanced', action='store_true', default=True
                          " to class frequencies in the input data")
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
-parser.add_argument('--label-type', type=str, default="like", help="Label type")
-parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
+parser.add_argument('--label-type', type=str, default="click", help="Label type")
+parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
-parser.add_argument('--mu', type=float, default=1.0, help='mu')
-parser.add_argument('--theta', type=float, default=5, help='theta')
+parser.add_argument('--mu', type=float, default=0.4, help='mu')
+parser.add_argument('--theta', type=float, default=7, help='theta')
 parser.add_argument('--num-pooling', type=int, default=2, help="Number of hierarchical pooling layers")
 
 args = parser.parse_args()
@@ -201,7 +201,7 @@ def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
                     args.model, args.mu, args.theta, best_test[0], best_test[1], best_test[2], best_test[3])
 
 
-seeds = [0]
+seeds = [42]
 
 for seed in seeds:
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
