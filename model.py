@@ -111,7 +111,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
             if i == 0:
                 cur_attn_mask = True
             else:
-                cur_attn_mask = True  # old False
+                cur_attn_mask = False  # old False
             assign_dims.append(assign_dim)
             assign_conv_first, assign_conv_block, assign_conv_last = self.build_conv_layers(
                 assign_num_layers, n_head, assign_input_dim, assign_hidden_dim, assign_dim, attn_dropout, cur_attn_mask)
