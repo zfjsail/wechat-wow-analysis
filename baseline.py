@@ -31,7 +31,7 @@ def random_guess(data="weibo", train_ratio=50, valid_ratio=25, seed=42):
     y_pred_random = np.array([round(y[1]) for y in y_score_random_test])
 
     prec, rec, f1, _ = precision_recall_fscore_support(labels_test, y_pred_random, average="binary")
-    auc = roc_auc_score(labels_test, y_score_random[:, 1])
+    auc = roc_auc_score(labels_test, y_score_random_test[:, 1])
     logger.info('random pred results %.4f %.4f %.4f', prec, rec, f1)
     logger.info('random auc score %.4f', auc)
 
