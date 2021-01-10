@@ -175,8 +175,8 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
 
         ego_embs.append(gat_add_tensor[:, 0, :])
 
-        # out, _ = torch.max(embedding_tensor, dim=1)
-        out = torch.sum(embedding_tensor, dim=1)
+        out, _ = torch.max(embedding_tensor, dim=1)
+        # out = torch.sum(embedding_tensor, dim=1)
         # if self.args.data == "wechat":
         #     out = embedding_tensor[:, 0, :]
         # else:
@@ -219,8 +219,8 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
                                                                    self.conv_last_after_pool[i])
 
             # print("emb shape", embedding_tensor.shape)
-            # out, _ = torch.max(embedding_tensor, dim=1)
-            out = torch.sum(embedding_tensor, dim=1)
+            out, _ = torch.max(embedding_tensor, dim=1)
+            # out = torch.sum(embedding_tensor, dim=1)
             # if ego_assign is None:
             #     if self.args.data == "wechat":
             #         ego_assign = self.assign_tensor[:, 0, :].unsqueeze(1)
