@@ -61,7 +61,7 @@ parser.add_argument('--class-weight-balanced', action='store_true', default=True
                          " to class frequencies in the input data")
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
-parser.add_argument('--label-type', type=str, default="click", help="Label type")
+parser.add_argument('--label-type', type=str, default="like", help="Label type")
 parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
