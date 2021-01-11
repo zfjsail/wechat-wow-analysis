@@ -1,6 +1,7 @@
 from os.path import join
 import numpy as np
 import os
+from collections import defaultdict as dd
 import networkx as nx
 import settings
 
@@ -105,6 +106,62 @@ def gen_wl_features(dataset="weibo"):
             wf.close()
 
 
+def gen_weibo_sample_features():
+    file_dir = join(settings.DATA_DIR, "weibo")
+
+    graphs = np.load(os.path.join(file_dir, "adjacency_matrix.npy")).astype(np.float32)
+    N = len(graphs)
+    vertices = np.load(os.path.join(file_dir, "vertex_id.npy"))
+    logger.info("vertex ids loaded!")
+
+    inf_features = np.load(
+            os.path.join(file_dir, "influence_feature.npy")).astype(np.float32)
+
+    friend_dict = dd(set)
+    with open(join(file_dir, "all_edges.txt")) as rf:
+        for i, line in enumerate(rf):
+            if i % 100000 == 0:
+                logger.info("read edges line %d", i)
+            items = line.strip().split()
+            u, v = int(items[0]), int(items[1])
+            friend_dict[u].add(v)
+            friend_dict[v].add(u)
+
+    wf = open(join(file_dir, "weibo_sample_other_features.txt"), "w")
+
+    for i in range(N):
+        if i % 10000 == 0:
+            logger.info("process %d", i)
+            wf.flush()
+        cur_adj = graphs[i]
+        cur_nodes = vertices[i]
+
+        cur_g = nx.from_numpy_array(cur_adj)
+        cur_inf_features = inf_features[i]
+
+        n_act_nbrs = sum(cur_inf_features[:, 0])
+
+        n_cc = len(list(nx.connected_components(cur_g)))
+
+        lcc = float(2 * cur_g.number_of_edges())/(cur_g.number_of_nodes()*(cur_g.number_of_nodes() - 1))
+
+        ego_friends = friend_dict[int(cur_nodes[-1])]
+        n_ego_f = len(ego_friends)
+        f_friends = [friend_dict[int(f)] for f in cur_nodes[:-1] if int(f) in friend_dict]
+        common_f_ego = [len(ego_friends.intersection(ff))/n_ego_f for ff in f_friends]
+        common_f_f = [len(ego_friends.intersection(ff))/len(ff) for ff in f_friends]
+        avg_ff_1 = np.mean(common_f_ego)
+        avg_ff_2 = np.mean(common_f_f)
+        sum_ff_1 = sum(common_f_ego)
+        sum_ff_2 = sum(common_f_f)
+
+        cur_features = [n_act_nbrs, n_cc, lcc, avg_ff_1, avg_ff_2, sum_ff_1, sum_ff_2]
+        wf.write("\t".join([str(x) for x in cur_features])+"\n")
+
+    wf.close()
+
+
 if __name__ == "__main__":
-    gen_wl_features(dataset="wechat")
+    # gen_wl_features(dataset="wechat")
+    gen_weibo_sample_features()
     logger.info("done")
