@@ -83,6 +83,9 @@ def train_baseline_weibo(method="lr", train_ratio=50, valid_ratio=25, seed=42):
 
     if method == "lr":
         clf = LogisticRegression(n_jobs=10, class_weight="balanced")
+    elif method == "rf":
+        clf = RandomForestClassifier(random_state=0, verbose=True, n_jobs=10,
+                                     max_depth=4, class_weight="balanced")
     else:
         raise
 
@@ -109,5 +112,5 @@ def train_baseline_weibo(method="lr", train_ratio=50, valid_ratio=25, seed=42):
 
 if __name__ == "__main__":
     # random_guess()
-    train_baseline_weibo(method="lr")
+    train_baseline_weibo(method="rf")
     logger.info("done")
