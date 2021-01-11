@@ -36,7 +36,7 @@ parser.add_argument('--model', type=str, default='diffpool_prone', help="models 
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.01, help='Initial learning rate.')  # wow: 0.01, click: 0.1
+parser.add_argument('--lr', type=float, default=0.003, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--weight-decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
 parser.add_argument('--dropout', type=float, default=0.2,
@@ -61,12 +61,12 @@ parser.add_argument('--class-weight-balanced', action='store_true', default=True
                          " to class frequencies in the input data")
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
-parser.add_argument('--label-type', type=str, default="like", help="Label type")
-parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
+parser.add_argument('--label-type', type=str, default="click", help="Label type")
+parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
-parser.add_argument('--num-pooling', type=int, default=2, help="Number of hierarchical pooling layers")
+parser.add_argument('--num-pooling', type=int, default=1, help="Number of hierarchical pooling layers")
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
