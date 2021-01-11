@@ -42,8 +42,14 @@ def random_guess(data="weibo", train_ratio=50, valid_ratio=25, seed=42):
 def train_baseline_weibo(method="lr", train_ratio=50, valid_ratio=25, seed=42):
     file_dir = join(settings.DATA_DIR, "weibo")
 
+    vertices = np.load(os.path.join(file_dir, "vertex_id.npy"))
+    logger.info("vertex ids loaded!")
+
     vertex_features = np.load(os.path.join(file_dir, "vertex_feature.npy"))
-    vertex_features = vertex_features[:, -1, :]
+    # vertex_features = vertex_features[:, -1, :]
+
+    ego_vids = vertices[:, -1]
+    vertex_features = vertex_features[ego_vids]
 
     other_features = []
     with open(join(file_dir, "weibo_sample_other_features.txt")) as rf:
