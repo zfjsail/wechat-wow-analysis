@@ -35,13 +35,13 @@ parser.add_argument('--model', type=str, default='diffpool_prone', help="models 
 # parser.add_argument('--model', type=str, default='gat', help="models used")
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
-parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
+parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.003, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--weight-decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--dropout', type=float, default=0.2,
+parser.add_argument('--dropout', type=float, default=0.4,
                     help='Dropout rate (1 - keep probability).')
-parser.add_argument('--attn-dropout', type=float, default=0.0, help='adj Dropout rate.')  # little use
+parser.add_argument('--attn-dropout', type=float, default=0.2, help='adj Dropout rate.')  # little use
 parser.add_argument('--hidden-units', type=str, default="16,8",
                     help="Hidden units in each hidden layer, splitted with comma")
 parser.add_argument('--heads', type=str, default="8,8,1",
@@ -294,6 +294,8 @@ for seed in seeds:
                                      dropout=args.dropout, instance_normalization=args.instance_normalization,
                                      use_diffpool=True, use_deepinf=False, use_prone=False,
                                      mu=args.mu, theta=args.theta,
+                                     attn_dropout=args.attn_dropout,
+                                     num_pooling=args.num_pooling,
                                      args=args)
 
     print(model)
