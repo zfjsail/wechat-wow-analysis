@@ -300,6 +300,12 @@ class BatchWrapDiffGATPool(nn.Module):
             nn.Linear(vertex_feature_dim, second_order_dim)
         ])
 
+        self.emb_second_order_wo_vf = nn.ModuleList([
+            nn.Linear(2, second_order_dim),
+            nn.Linear(pretrained_emb_dim, second_order_dim),
+            # nn.Linear(vertex_feature_dim, second_order_dim)
+        ])
+
         self.V = nn.Parameter(torch.randn(8, n_units[0]), requires_grad=True)
 
         self.layer_stack = nn.ModuleList()
@@ -380,6 +386,9 @@ class BatchWrapDiffGATPool(nn.Module):
         elif self.use_vertex_feature and not self.use_pretrain:
             input_x_cat = [x, vertex_features]
             fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order_wo_emb)]
+        elif not self.use_vertex_feature and self.use_pretrain:
+            input_x_cat = [x, emb]
+            fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order_wo_vf)]
         else:
             raise
         # fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order)]

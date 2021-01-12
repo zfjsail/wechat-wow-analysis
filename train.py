@@ -59,7 +59,7 @@ parser.add_argument('--valid-ratio', type=float, default=25, help="Validation ra
 parser.add_argument('--class-weight-balanced', action='store_true', default=True,
                     help="Adjust weights inversely proportional"
                          " to class frequencies in the input data")
-parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
+parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=False,
                     help="Whether to use vertices' structural features")
 parser.add_argument('--label-type', type=str, default="click", help="Label type")
 parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
@@ -67,7 +67,7 @@ parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
 parser.add_argument('--num-pooling', type=int, default=1, help="Number of hierarchical pooling layers")
-parser.add_argument('--use-pretrain', type=bool, default=False, help="whether pre-train as input")
+parser.add_argument('--use-pretrain', type=bool, default=True, help="whether pre-train as input")
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
