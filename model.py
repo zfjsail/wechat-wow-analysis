@@ -261,7 +261,7 @@ class BatchWrapDiffGATPool(nn.Module):
                  n_units=[1433, 8, 7], n_heads=[8, 1],
                  dropout=0.1, attn_dropout=0.0,
                  instance_normalization=False, use_diffpool=True, use_deepinf=True, use_prone=True,
-                 mu=1, theta=3.5, num_pooling=1, args=None):
+                 mu=1, theta=3.5, num_pooling=1, args=None, use_pretrain=True):
         super(BatchWrapDiffGATPool, self).__init__()
         self.n_layer = len(n_units) - 1
         self.dropout = dropout
@@ -271,12 +271,16 @@ class BatchWrapDiffGATPool(nn.Module):
         if self.inst_norm:
             self.norm = nn.InstanceNorm1d(pretrained_emb_dim, momentum=0.0, affine=True)
 
-        n_units[0] += pretrained_emb_dim
+        self.use_pretrain = use_pretrain
+
+        if self.use_pretrain:
+            n_units[0] += pretrained_emb_dim
 
         self.use_vertex_feature = use_vertex_feature
         if self.use_vertex_feature:
             n_units[0] += vertex_feature_dim
-            
+
+
         first_order_dim = 16
         second_order_dim = 16
 
@@ -295,8 +299,8 @@ class BatchWrapDiffGATPool(nn.Module):
         self.layer_stack = nn.ModuleList()
         n_units[-1] = 5
         label_dim = 32
-        node_feature_input_dim = n_units[0]
-        # node_feature_input_dim = n_units[0] + second_order_dim
+        # node_feature_input_dim = n_units[0]
+        node_feature_input_dim = n_units[0] + second_order_dim
         # node_feature_input_dim = first_order_dim*3 + second_order_dim
 
         self.pool_layer = SoftPoolingGATEncoder(max_num_nodes=32, input_dim=node_feature_input_dim, hidden_dim=16,
@@ -364,8 +368,14 @@ class BatchWrapDiffGATPool(nn.Module):
         # out_2 = torch.matmul(x.pow(2), self.V.pow(2)).sum(2, keepdim=True) # S_2
         # out_inter = 0.5*(out_1 - out_2)
 
-        input_x_cat = [x, emb, vertex_features]
-        fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order)]
+        if self.use_pretrain and self.use_vertex_feature:
+            input_x_cat = [x, emb, vertex_features]
+        elif self.use_vertex_feature and not self.use_pretrain:
+            input_x_cat = [x, vertex_features]
+        else:
+            raise
+        # fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order)]
+        fm_second_order_emb_arr = [self.emb_second_order[w_i](cur_x) for w_i, cur_x in enumerate(input_x_cat)]
         fm_sum_second_order_emb = sum(fm_second_order_emb_arr)
         fm_sum_second_order_emb_square = fm_sum_second_order_emb * fm_sum_second_order_emb  # (x+y)^2
         fm_second_order_emb_square = [item * item for item in fm_second_order_emb_arr]
@@ -388,8 +398,8 @@ class BatchWrapDiffGATPool(nn.Module):
         if self.use_vertex_feature:
             x_2 = torch.cat((x_2, vertex_features), dim=2)
 
-        # xx = torch.cat((x_2, xx), dim=2)
-        xx = x_2
+        xx = torch.cat((x_2, xx), dim=2)
+        # xx = x_2
 
         # xx = x
         # print("xx shape", xx.shape)
