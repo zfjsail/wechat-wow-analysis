@@ -2,6 +2,7 @@ from os.path import join
 import numpy as np
 import os
 from collections import defaultdict as dd
+import sklearn
 import networkx as nx
 import settings
 
@@ -161,7 +162,51 @@ def gen_weibo_sample_features():
     wf.close()
 
 
+def split_weibo_features(train_ratio=50, valid_ratio=25, seed=42):
+    file_dir = join(settings.DATA_DIR, "weibo")
+
+    vertices = np.load(os.path.join(file_dir, "vertex_id.npy"))
+    logger.info("vertex ids loaded!")
+
+    vertex_features = np.load(os.path.join(file_dir, "vertex_feature.npy"))
+    # vertex_features = vertex_features[:, -1, :]
+
+    ego_vids = vertices[:, -1]
+    vertex_features = vertex_features[ego_vids]
+
+    other_features = []
+    with open(join(file_dir, "weibo_sample_other_features.txt")) as rf:
+        for i, line in enumerate(rf):
+            if i % 100000 == 0:
+                logger.info("read other features line %d", i)
+            cur_other_f = [float(x) for x in line.strip().split()]
+            other_features.append(cur_other_f)
+
+    other_features = np.array(other_features)
+
+    x = np.concatenate((vertex_features, other_features), axis=1)
+
+    labels = np.load(os.path.join(file_dir, "label.npy"))
+    logger.info("labels loaded!")
+
+    labels, x = sklearn.utils.shuffle(labels, x, random_state=seed)
+
+    N = len(labels)
+    train_start, valid_start, test_start = \
+        0, int(N * train_ratio / 100), int(N * (train_ratio + valid_ratio) / 100)
+    x_train = x[:test_start]
+    x_test = x[test_start:]
+    y_train = labels[:test_start]
+    y_test = labels[test_start:]
+
+    np.save(join(file_dir, "x_train_baseline_features.npy"), x_train)
+    np.save(join(file_dir, "y_train_baseline.npy"), y_train)
+    np.save(join(file_dir, "x_test_baseline_features.npy"), x_test)
+    np.save(join(file_dir, "y_test_baseline.npy"), y_test)
+
+
 if __name__ == "__main__":
     # gen_wl_features(dataset="wechat")
-    gen_weibo_sample_features()
+    # gen_weibo_sample_features()
+    split_weibo_features()
     logger.info("done")
