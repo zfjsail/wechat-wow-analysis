@@ -402,7 +402,10 @@ class BatchWrapDiffGATPool(nn.Module):
 
         if self.inst_norm:
             emb = self.norm(emb.transpose(1, 2)).transpose(1, 2)
-        x_2 = torch.cat((x, emb), dim=2)
+        if self.use_pretrain:
+            x_2 = torch.cat((x, emb), dim=2)
+        else:
+            x_2 = x
         if self.use_vertex_feature:
             x_2 = torch.cat((x_2, vertex_features), dim=2)
 
