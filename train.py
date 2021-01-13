@@ -31,19 +31,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')  # inc
 # Training settings
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, default='diffpool_prone', help="models used")
-parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.1, help='Initial learning rate.')  # wow: 0.01, click: 0.1
+parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
+parser.add_argument('--lr', type=float, default=0.01, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--attn-dropout', type=float, default=0., help='adj Dropout rate.')  # little use
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
-parser.add_argument('--label-type', type=str, default="click", help="Label type")
+parser.add_argument('--label-type', type=str, default="like", help="Label type")
 parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
 parser.add_argument('--num-pooling', type=int, default=2, help="Number of hierarchical pooling layers")
-parser.add_argument('--use-pretrain', type=bool, default=True, help="whether pre-train as input")
+parser.add_argument('--use-pretrain', type=bool, default=False, help="whether pre-train as input")
 
 
 parser.add_argument('--tensorboard-log', type=str, default='', help="name of this run")
@@ -219,8 +219,8 @@ seeds = [42]
 wf_temp = "test_results_model_{}_epoch_{}_lr_{}_dropout_{}_attn_dp_{}_vfeature_{}_label_type_{}_data_{}_mu_{}_theta" \
           "_{}_num_pooling_{}_pretrain_{}.txt"
 
-# for seed in seeds:
-for n_pool in range(0, 5):
+for seed in seeds:
+# for n_pool in range(0, 5):
 # for mu in range(0, 6):
 #     args.mu = 0.2 * mu
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -234,7 +234,7 @@ for n_pool in range(0, 5):
     print("args current loop", args)
 
     wfname = wf_temp.format(args.model, args.epochs, args.lr, args.dropout, args.attn_dropout, args.use_vertex_feature,
-                            args.label_type, args.data, args.mu, args.theta, n_pool, args.use_pretrain)
+                            args.label_type, args.data, args.mu, args.theta, args.num_pooling, args.use_pretrain)
     out_dir = join(settings.OUT_DIR, "results", args.data)
     os.makedirs(out_dir, exist_ok=True)
     wf = open(join(out_dir, wfname), "w")
@@ -310,8 +310,8 @@ for n_pool in range(0, 5):
                                      use_diffpool=True, use_deepinf=False, use_prone=True,
                                      mu=args.mu, theta=args.theta,
                                      attn_dropout=args.attn_dropout,
-                                     # num_pooling=args.num_pooling,
-                                     num_pooling=n_pool,
+                                     num_pooling=args.num_pooling,
+                                     # num_pooling=n_pool,
                                      use_pretrain=args.use_pretrain,
                                      args=args)
     elif args.model == "diffpool":
