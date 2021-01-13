@@ -147,8 +147,9 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
         # self.gat_sep_layer_1_2 = BatchMultiHeadGraphAttention(1, f_in=hidden_dim, f_out=self.pred_input_dim,
         #                                                       attn_dropout=attn_dropout, attn_mask=True)
 
-        self.merge_fc_2 = nn.Linear(label_dim + self.pred_input_dim, label_dim)
-        init.xavier_normal_(self.merge_fc_2.weight.data)
+        if use_diffpool and use_deepinf:
+            self.merge_fc_2 = nn.Linear(label_dim + self.pred_input_dim, label_dim)
+            init.xavier_normal_(self.merge_fc_2.weight.data)
 
     def forward(self, x, adj, batch_num_nodes, **kwargs):
         if 'assign_x' in kwargs:
@@ -283,10 +284,10 @@ class BatchWrapDiffGATPool(nn.Module):
         first_order_dim = 16
         second_order_dim = 32
 
-        self.emb_vertex_feature = nn.Linear(vertex_feature_dim, first_order_dim)
-        self.emb_inf_feature = nn.Linear(2, first_order_dim)
-        self.emb_pretrain = nn.Linear(pretrained_emb_dim, first_order_dim)
-        self.emb_3 = nn.ModuleList([self.emb_inf_feature, self.emb_pretrain, self.emb_vertex_feature])
+        # self.emb_vertex_feature = nn.Linear(vertex_feature_dim, first_order_dim)
+        # self.emb_inf_feature = nn.Linear(2, first_order_dim)
+        # self.emb_pretrain = nn.Linear(pretrained_emb_dim, first_order_dim)
+        # self.emb_3 = nn.ModuleList([self.emb_inf_feature, self.emb_pretrain, self.emb_vertex_feature])
 
         if self.use_pretrain and self.use_vertex_feature:
             self.emb_second_order = nn.ModuleList([
@@ -324,8 +325,10 @@ class BatchWrapDiffGATPool(nn.Module):
                                                 use_diffpool=use_diffpool, use_deepinf=use_deepinf,
                                                 num_pooling=num_pooling, bn=False, dropout=self.dropout, args=args)
 
-        self.fc_after_pool = nn.Linear(label_dim, 2)
-        self.fc_after_prone = nn.Linear(node_feature_input_dim, 2)
+        if self.use_diffpool:
+            self.fc_after_pool = nn.Linear(label_dim, 2)
+        else:
+            self.fc_after_prone = nn.Linear(node_feature_input_dim, 2)
 
         self.mu = torch.nn.Parameter(torch.FloatTensor(1))
         self.theta = theta
@@ -374,10 +377,10 @@ class BatchWrapDiffGATPool(nn.Module):
         return mm
 
     def add_fm(self, x, emb, vertex_features):
-        x_inf = self.emb_inf_feature(x)
-        x_emb = self.emb_pretrain(emb)
-        x_vfeature = self.emb_vertex_feature(vertex_features)
-        x_first_cat = torch.cat((x_inf, x_emb, x_vfeature), dim=2)
+        # x_inf = self.emb_inf_feature(x)
+        # x_emb = self.emb_pretrain(emb)
+        # x_vfeature = self.emb_vertex_feature(vertex_features)
+        # x_first_cat = torch.cat((x_inf, x_emb, x_vfeature), dim=2)
 
         # out_1 = torch.matmul(x, self.V).pow(2).sum(2, keepdim=True) #S_1^2
         # out_2 = torch.matmul(x.pow(2), self.V.pow(2)).sum(2, keepdim=True) # S_2
