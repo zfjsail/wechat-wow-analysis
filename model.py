@@ -142,10 +142,10 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
                 if m.bias is not None:
                     m.bias.data = init.constant(m.bias.data, 0.0)
 
-        self.gat_sep_layer_1_1 = BatchMultiHeadGraphAttention(8, f_in=hidden_dim, f_out=hidden_dim,
-                                                              attn_dropout=attn_dropout, attn_mask=True)
-        self.gat_sep_layer_1_2 = BatchMultiHeadGraphAttention(1, f_in=hidden_dim, f_out=self.pred_input_dim,
-                                                              attn_dropout=attn_dropout, attn_mask=True)
+        # self.gat_sep_layer_1_1 = BatchMultiHeadGraphAttention(8, f_in=hidden_dim, f_out=hidden_dim,
+        #                                                       attn_dropout=attn_dropout, attn_mask=True)
+        # self.gat_sep_layer_1_2 = BatchMultiHeadGraphAttention(1, f_in=hidden_dim, f_out=self.pred_input_dim,
+        #                                                       attn_dropout=attn_dropout, attn_mask=True)
 
         self.merge_fc_2 = nn.Linear(label_dim + self.pred_input_dim, label_dim)
         init.xavier_normal_(self.merge_fc_2.weight.data)
@@ -169,11 +169,11 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
                                                        self.conv_first, self.conv_block, self.conv_last, embedding_mask)
 
         ego_embs = []
-        gat_add_tensor = F.elu(self.gat_sep_layer_1_1(emb_first, adj))
-        gat_add_tensor = self.gat_sep_layer_1_2(gat_add_tensor, adj)
-        gat_add_tensor = gat_add_tensor.mean(dim=1)
+        # gat_add_tensor = F.elu(self.gat_sep_layer_1_1(emb_first, adj))
+        # gat_add_tensor = self.gat_sep_layer_1_2(gat_add_tensor, adj)
+        # gat_add_tensor = gat_add_tensor.mean(dim=1)
 
-        ego_embs.append(gat_add_tensor[:, 0, :])
+        # ego_embs.append(gat_add_tensor[:, 0, :])
 
         out, _ = torch.max(embedding_tensor, dim=1)
         # out = torch.sum(embedding_tensor, dim=1)
@@ -280,7 +280,6 @@ class BatchWrapDiffGATPool(nn.Module):
         if self.use_vertex_feature:
             n_units[0] += vertex_feature_dim
 
-
         first_order_dim = 16
         second_order_dim = 32
 
@@ -288,25 +287,29 @@ class BatchWrapDiffGATPool(nn.Module):
         self.emb_inf_feature = nn.Linear(2, first_order_dim)
         self.emb_pretrain = nn.Linear(pretrained_emb_dim, first_order_dim)
         self.emb_3 = nn.ModuleList([self.emb_inf_feature, self.emb_pretrain, self.emb_vertex_feature])
-        self.emb_second_order = nn.ModuleList([
-            nn.Linear(2, second_order_dim),
-            nn.Linear(pretrained_emb_dim, second_order_dim),
-            nn.Linear(vertex_feature_dim, second_order_dim)
-        ])
 
-        self.emb_second_order_wo_emb = nn.ModuleList([
-            nn.Linear(2, second_order_dim),
-            # nn.Linear(pretrained_emb_dim, second_order_dim),
-            nn.Linear(vertex_feature_dim, second_order_dim)
-        ])
+        if self.use_pretrain and self.use_vertex_feature:
+            self.emb_second_order = nn.ModuleList([
+                nn.Linear(2, second_order_dim),
+                nn.Linear(pretrained_emb_dim, second_order_dim),
+                nn.Linear(vertex_feature_dim, second_order_dim)
+            ])
 
-        self.emb_second_order_wo_vf = nn.ModuleList([
-            nn.Linear(2, second_order_dim),
-            nn.Linear(pretrained_emb_dim, second_order_dim),
-            # nn.Linear(vertex_feature_dim, second_order_dim)
-        ])
+        if not self.use_pretrain and self.use_vertex_feature:
+            self.emb_second_order_wo_emb = nn.ModuleList([
+                nn.Linear(2, second_order_dim),
+                # nn.Linear(pretrained_emb_dim, second_order_dim),
+                nn.Linear(vertex_feature_dim, second_order_dim)
+            ])
 
-        self.V = nn.Parameter(torch.randn(8, n_units[0]), requires_grad=True)
+        if self.use_pretrain and not self.use_vertex_feature:
+            self.emb_second_order_wo_vf = nn.ModuleList([
+                nn.Linear(2, second_order_dim),
+                nn.Linear(pretrained_emb_dim, second_order_dim),
+                # nn.Linear(vertex_feature_dim, second_order_dim)
+            ])
+
+        # self.V = nn.Parameter(torch.randn(8, n_units[0]), requires_grad=True)
 
         self.layer_stack = nn.ModuleList()
         n_units[-1] = 5

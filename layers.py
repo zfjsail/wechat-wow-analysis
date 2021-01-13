@@ -22,7 +22,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
         init.constant_(self.a_src_bias, 0)
         init.constant_(self.a_dst_bias, 0)
 
-        self.w_bi = Parameter(torch.Tensor(1, f_out, f_out))
+        # self.w_bi = Parameter(torch.Tensor(1, f_out, f_out))
 
         self.attn_mask = attn_mask
 
@@ -47,20 +47,19 @@ class BatchMultiHeadGraphAttention(nn.Module):
             h_prime = torch.matmul(h.unsqueeze(1), self.w)  # bs x n_head x n x f_out
         else:
             h_prime = torch.matmul(h, self.w)  # bs x n_head x n x f_out
-        f_out = h_prime.size()[-1]
+        # f_out = h_prime.size()[-1]
         # attn_src = torch.matmul(torch.tanh(h_prime), self.a_src)  # bs x n_head x n x 1
         attn_src = torch.matmul(torch.tanh(h_prime), self.a_src) + self.a_src_bias  # bs x n_head x n x 1
         # attn_src = torch.matmul(h_prime, self.a_src)  # bs x n_head x n x 1
         # attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst)  # bs x n_head x n x 1
         attn_dst = torch.matmul(torch.tanh(h_prime), self.a_dst) + self.a_dst_bias  # bs x n_head x n x 1
         # attn_dst = torch.matmul(h_prime, self.a_dst)  # bs x n_head x n x 1
-        attn_go = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3,
-                                                                                       2)  # bs x n_head x n x n
+        # attn_go = attn_src.expand(-1, -1, -1, n) + attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)  # bs x n_head x n x n
         attn_2_order = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)  # bs x n_head x n x n
         # attn_2_order_scale = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)/np.sqrt(f_out)  # bs x n_head x n x n
-        attn_2_order_scale = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2) * np.sqrt(f_out)  # bs x n_head x n x n
+        # attn_2_order_scale = attn_src.expand(-1, -1, -1, n) * attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2) * np.sqrt(f_out)  # bs x n_head x n x n
 
-        attn_half = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)
+        # attn_half = attn_dst.expand(-1, -1, -1, n).permute(0, 1, 3, 2)
 
         # attn = torch.einsum("abce,abde->abcd", h_prime, h_prime)  # weibo AUC: 0.8251 Prec: 0.4869 Rec: 0.7387 F1: 0.5869
         # attn = torch.einsum("abce,abde->abcd", torch.tanh(h_prime), torch.tanh(h_prime))  # weibo AUC: 0.8245 Prec: 0.4834 Rec: 0.7556 F1: 0.5896
