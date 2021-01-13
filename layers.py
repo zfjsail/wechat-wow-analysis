@@ -36,7 +36,7 @@ class BatchMultiHeadGraphAttention(nn.Module):
             self.register_parameter('bias', None)
 
         init.xavier_uniform_(self.w)
-        init.xavier_uniform_(self.w_bi)
+        # init.xavier_uniform_(self.w_bi)
         init.xavier_uniform_(self.a_src)
         init.xavier_uniform_(self.a_dst)
 
