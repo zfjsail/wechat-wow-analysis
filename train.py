@@ -30,18 +30,28 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')  # inc
 
 # Training settings
 parser = argparse.ArgumentParser()
-parser.add_argument('--tensorboard-log', type=str, default='', help="name of this run")
 parser.add_argument('--model', type=str, default='diffpool_prone', help="models used")
+parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
+parser.add_argument('--lr', type=float, default=0.003, help='Initial learning rate.')  # wow: 0.01, click: 0.1
+parser.add_argument('--dropout', type=float, default=0.4,
+                    help='Dropout rate (1 - keep probability).')
+parser.add_argument('--attn-dropout', type=float, default=0.2, help='adj Dropout rate.')  # little use
+parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
+                    help="Whether to use vertices' structural features")
+parser.add_argument('--label-type', type=str, default="click", help="Label type")
+parser.add_argument('--data', type=str, default="weibo", help="Dataset Type")
+parser.add_argument('--mu', type=float, default=0.4, help='mu')
+parser.add_argument('--theta', type=float, default=7, help='theta')
+parser.add_argument('--num-pooling', type=int, default=2, help="Number of hierarchical pooling layers")
+parser.add_argument('--use-pretrain', type=bool, default=True, help="whether pre-train as input")
+
+
+parser.add_argument('--tensorboard-log', type=str, default='', help="name of this run")
 # parser.add_argument('--model', type=str, default='gat', help="models used")
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--seed', type=int, default=42, help='Random seed.')
-parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.1, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--weight-decay', type=float, default=5e-4,
                     help='Weight decay (L2 loss on parameters).')
-parser.add_argument('--dropout', type=float, default=0.2,
-                    help='Dropout rate (1 - keep probability).')
-parser.add_argument('--attn-dropout', type=float, default=0., help='adj Dropout rate.')  # little use
 parser.add_argument('--hidden-units', type=str, default="16,8",
                     help="Hidden units in each hidden layer, splitted with comma")
 parser.add_argument('--heads', type=str, default="8,8,1",
@@ -59,15 +69,8 @@ parser.add_argument('--valid-ratio', type=float, default=25, help="Validation ra
 parser.add_argument('--class-weight-balanced', action='store_true', default=True,
                     help="Adjust weights inversely proportional"
                          " to class frequencies in the input data")
-parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
-                    help="Whether to use vertices' structural features")
-parser.add_argument('--label-type', type=str, default="click", help="Label type")
-parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
 parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
-parser.add_argument('--mu', type=float, default=0.4, help='mu')
-parser.add_argument('--theta', type=float, default=7, help='theta')
-parser.add_argument('--num-pooling', type=int, default=2, help="Number of hierarchical pooling layers")
-parser.add_argument('--use-pretrain', type=bool, default=True, help="whether pre-train as input")
+
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -146,7 +149,7 @@ def evaluate(epoch, loader, thr=None, return_best_thr=False, log_desc='valid_'):
 
 
 def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
-    global best_auc, best_valid, best_test, best_epoch
+    global best_auc, best_valid, best_test, best_epoch, wf
 
     model.train()
 
@@ -201,18 +204,35 @@ def train(epoch, train_loader, valid_loader, test_loader, log_desc='train_'):
         logger.info("model %s, u=%f, theta=%f Best test until now: AUC: %.4f Prec: %.4f Rec: %.4f F1: %.4f",
                     args.model, args.mu, args.theta, best_test[0], best_test[1], best_test[2], best_test[3])
 
+        wf.write("********************BEST UNTIL NOW IN EPOCH {}***********************\n".format(best_epoch))
+        wf.write("model {}, u={}, theta={}, best validation until now: AUC: {:.04} Prec: {:.04} Rec: {:.04} "
+                 "F1: {:.04}\n".format(args.model, args.mu, args.theta, best_valid[0], best_valid[1], best_valid[2],
+                                       best_valid[3]))
+        wf.write("model {}, u={}, theta={}, best validation until now: AUC: {:.04} Prec: {:.04} Rec: {:.04} "
+                 "F1: {:.04}\n".format(args.model, args.mu, args.theta, best_test[0], best_test[1], best_test[2],
+                                       best_test[3]))
+        wf.flush()
+
 
 seeds = [42]
 
-for seed in seeds:
+wf_temp = "test_results_model_{}_epoch_{}_lr_{}_dropout_{}_attn_dp_{}_vfeature_{}_label_type_{}_data_{}_mu_{}_theta" \
+          "_{}_num_pooling_{}_pretrain_{}.txt"
+
+# for seed in seeds:
+for n_pool in range(0, 5):
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    print("seed", seed)
+    # print("seed", seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
+
+    wfname = wf_temp.format(args.model, args.epochs, args.lr, args.dropout, args.attn_dropout, args.use_vertex_feature,
+                            args.label_type, args.data, args.mu, args.theta, n_pool, args.use_pretrain)
+    wf = open(join(settings.OUT_DIR, wfname), "w")
 
     if args.data == "wechat":
         influence_dataset_train = InfluenceDatasetWeChat(args.file_dir, args.dim, args.seed, args.shuffle,
@@ -285,7 +305,8 @@ for seed in seeds:
                                      use_diffpool=True, use_deepinf=False, use_prone=True,
                                      mu=args.mu, theta=args.theta,
                                      attn_dropout=args.attn_dropout,
-                                     num_pooling=args.num_pooling,
+                                     # num_pooling=args.num_pooling,
+                                     num_pooling=n_pool,
                                      use_pretrain=args.use_pretrain,
                                      args=args)
     elif args.model == "diffpool":
@@ -337,3 +358,12 @@ for seed in seeds:
                 args.model, best_valid[0], best_valid[1], best_valid[2], best_valid[3])
     logger.info("model %s, Best test until now: AUC: %.4f Prec: %.4f Rec: %.4f F1: %.4f",
                 args.model, best_test[0], best_test[1], best_test[2], best_test[3])
+
+    wf.write("best is in epoch {}\n".format(best_epoch))
+    wf.write("model {}, u={}, theta={}, best validation until now: AUC: {:.04} Prec: {:.04} Rec: {:.04} "
+             "F1: {:.04}\n".format(args.model, args.mu, args.theta, best_valid[0], best_valid[1], best_valid[2],
+                                   best_valid[3]))
+    wf.write("model {}, u={}, theta={}, best validation until now: AUC: {:.04} Prec: {:.04} Rec: {:.04} "
+             "F1: {:.04}\n".format(args.model, args.mu, args.theta, best_test[0], best_test[1], best_test[2],
+                                   best_test[3]))
+    wf.close()

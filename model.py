@@ -282,7 +282,7 @@ class BatchWrapDiffGATPool(nn.Module):
 
 
         first_order_dim = 16
-        second_order_dim = 16
+        second_order_dim = 32
 
         self.emb_vertex_feature = nn.Linear(vertex_feature_dim, first_order_dim)
         self.emb_inf_feature = nn.Linear(2, first_order_dim)
