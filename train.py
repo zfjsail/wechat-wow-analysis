@@ -44,6 +44,7 @@ parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
 parser.add_argument('--num-pooling', type=int, default=2, help="Number of hierarchical pooling layers")
 parser.add_argument('--use-pretrain', type=bool, default=True, help="whether pre-train as input")
+parser.add_argument('--batch', type=int, default=1024, help="Batch size")
 
 
 parser.add_argument('--tensorboard-log', type=str, default='', help="name of this run")
@@ -56,7 +57,6 @@ parser.add_argument('--hidden-units', type=str, default="16,8",
                     help="Hidden units in each hidden layer, splitted with comma")
 parser.add_argument('--heads', type=str, default="8,8,1",
                     help="Heads in each layer, splitted with comma")  # adjust
-parser.add_argument('--batch', type=int, default=2048, help="Batch size")
 parser.add_argument('--dim', type=int, default=64, help="Embedding dimension")
 parser.add_argument('--check-point', type=int, default=10, help="Check point")
 parser.add_argument('--instance-normalization', action='store_true', default=False,
@@ -220,10 +220,10 @@ wf_temp = "test_results_model_{}_epoch_{}_lr_{}_dropout_{}_attn_dp_{}_vfeature_{
           "_{}_num_pooling_{}_pretrain_{}.txt"
 
 # for seed in seeds:
-for n_pool in range(0, 5):
-# for mu in range(0, 6):
-#     args.mu = 0.2 * mu
-    args.num_pooling = n_pool
+# for n_pool in range(0, 5):
+for mu in range(0, 6):
+    args.mu = 0.2 * mu
+    # args.num_pooling = n_pool
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
