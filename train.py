@@ -31,14 +31,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')  # inc
 # Training settings
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, default='diffpool_prone', help="models used")
-parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
-parser.add_argument('--lr', type=float, default=0.1, help='Initial learning rate.')  # wow: 0.01, click: 0.1
+parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
+parser.add_argument('--lr', type=float, default=0.01, help='Initial learning rate.')  # wow: 0.01, click: 0.1
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='Dropout rate (1 - keep probability).')
 parser.add_argument('--attn-dropout', type=float, default=0., help='adj Dropout rate.')  # little use
 parser.add_argument('--use-vertex-feature', type=lambda x: (str(x).lower() == 'true'), default=True,
                     help="Whether to use vertices' structural features")
-parser.add_argument('--label-type', type=str, default="click", help="Label type")
+parser.add_argument('--label-type', type=str, default="like", help="Label type")
 parser.add_argument('--data', type=str, default="wechat", help="Dataset Type")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
@@ -219,10 +219,11 @@ seeds = [42]
 wf_temp = "test_results_model_{}_epoch_{}_lr_{}_dropout_{}_attn_dp_{}_vfeature_{}_label_type_{}_data_{}_mu_{}_theta" \
           "_{}_num_pooling_{}_pretrain_{}.txt"
 
-for seed in seeds:
-# for n_pool in range(0, 5):
+# for seed in seeds:
+for n_pool in range(0, 5):
 # for mu in range(0, 6):
 #     args.mu = 0.2 * mu
+    args.num_pooling = n_pool
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
