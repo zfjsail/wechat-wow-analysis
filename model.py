@@ -315,8 +315,8 @@ class BatchWrapDiffGATPool(nn.Module):
         self.layer_stack = nn.ModuleList()
         n_units[-1] = 5
         label_dim = 32
-        node_feature_input_dim = n_units[0]
-        # node_feature_input_dim = n_units[0] + second_order_dim
+        # node_feature_input_dim = n_units[0]
+        node_feature_input_dim = n_units[0] + second_order_dim
         # node_feature_input_dim = first_order_dim*3 + second_order_dim
 
         self.pool_layer = SoftPoolingGATEncoder(max_num_nodes=32, input_dim=node_feature_input_dim, hidden_dim=16,
@@ -424,8 +424,8 @@ class BatchWrapDiffGATPool(nn.Module):
         if self.use_vertex_feature:
             x_2 = torch.cat((x_2, vertex_features), dim=2)
 
-        # xx = torch.cat((x_2, xx), dim=2)
-        xx = x_2
+        xx = torch.cat((x_2, xx), dim=2)
+        # xx = x_2
 
         # xx = x
         # print("xx shape", xx.shape)
