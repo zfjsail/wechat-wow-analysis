@@ -67,6 +67,7 @@ parser.add_argument('--debug', type=bool, default=False, help="Debug or not")
 parser.add_argument('--mu', type=float, default=0.4, help='mu')
 parser.add_argument('--theta', type=float, default=7, help='theta')
 parser.add_argument('--num-pooling', type=int, default=1, help="Number of hierarchical pooling layers")
+parser.add_argument('--use-pretrain', type=bool, default=True, help="Whether pretrain")
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -285,6 +286,7 @@ for seed in seeds:
                                      mu=args.mu, theta=args.theta,
                                      attn_dropout=args.attn_dropout,
                                      num_pooling=args.num_pooling,
+                                     use_pretrain=args.use_pretrain,
                                      args=args)
     elif args.model == "diffpool":
         model = BatchWrapDiffGATPool(pretrained_emb_dim=args.dim,

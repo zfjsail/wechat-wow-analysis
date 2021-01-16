@@ -259,7 +259,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
 class BatchWrapDiffGATPool(nn.Module):
     def __init__(self, pretrained_emb_dim, vertex_feature_dim, use_vertex_feature,
                  n_units=[1433, 8, 7], n_heads=[8, 1],
-                 dropout=0.1, attn_dropout=0.0,
+                 dropout=0.1, attn_dropout=0.0, use_pretrain=True,
                  instance_normalization=False, use_diffpool=True, use_deepinf=True, use_prone=True,
                  mu=1, theta=3.5, num_pooling=1, args=None):
         super(BatchWrapDiffGATPool, self).__init__()
@@ -268,10 +268,12 @@ class BatchWrapDiffGATPool(nn.Module):
         self.inst_norm = instance_normalization
         self.use_prone = use_prone
         self.use_diffpool = use_diffpool
+        self.use_pretrain = use_pretrain
         if self.inst_norm:
             self.norm = nn.InstanceNorm1d(pretrained_emb_dim, momentum=0.0, affine=True)
 
-        n_units[0] += pretrained_emb_dim
+        if self.use_pretrain:
+            n_units[0] += pretrained_emb_dim
 
         self.use_vertex_feature = use_vertex_feature
         if self.use_vertex_feature:
@@ -280,15 +282,36 @@ class BatchWrapDiffGATPool(nn.Module):
         first_order_dim = 16
         second_order_dim = 16
 
-        self.emb_vertex_feature = nn.Linear(vertex_feature_dim, first_order_dim)
-        self.emb_inf_feature = nn.Linear(2, first_order_dim)
-        self.emb_pretrain = nn.Linear(pretrained_emb_dim, first_order_dim)
-        self.emb_3 = nn.ModuleList([self.emb_inf_feature, self.emb_pretrain, self.emb_vertex_feature])
-        self.emb_second_order = nn.ModuleList([
-            nn.Linear(2, second_order_dim),
-            nn.Linear(pretrained_emb_dim, second_order_dim),
-            nn.Linear(vertex_feature_dim, second_order_dim)
-        ])
+        # self.emb_vertex_feature = nn.Linear(vertex_feature_dim, first_order_dim)
+        # self.emb_inf_feature = nn.Linear(2, first_order_dim)
+        # self.emb_pretrain = nn.Linear(pretrained_emb_dim, first_order_dim)
+        # self.emb_3 = nn.ModuleList([self.emb_inf_feature, self.emb_pretrain, self.emb_vertex_feature])
+        # self.emb_second_order = nn.ModuleList([
+        #     nn.Linear(2, second_order_dim),
+        #     nn.Linear(pretrained_emb_dim, second_order_dim),
+        #     nn.Linear(vertex_feature_dim, second_order_dim)
+        # ])
+
+        if self.use_pretrain and self.use_vertex_feature:
+            self.emb_second_order = nn.ModuleList([
+                nn.Linear(2, second_order_dim),
+                nn.Linear(pretrained_emb_dim, second_order_dim),
+                nn.Linear(vertex_feature_dim, second_order_dim)
+            ])
+
+        if not self.use_pretrain and self.use_vertex_feature:
+            self.emb_second_order_wo_emb = nn.ModuleList([
+                nn.Linear(2, second_order_dim),
+                # nn.Linear(pretrained_emb_dim, second_order_dim),
+                nn.Linear(vertex_feature_dim, second_order_dim)
+            ])
+
+        if self.use_pretrain and not self.use_vertex_feature:
+            self.emb_second_order_wo_vf = nn.ModuleList([
+                nn.Linear(2, second_order_dim),
+                nn.Linear(pretrained_emb_dim, second_order_dim),
+                # nn.Linear(vertex_feature_dim, second_order_dim)
+            ])
 
         self.V = nn.Parameter(torch.randn(8, n_units[0]), requires_grad=True)
 
@@ -355,17 +378,28 @@ class BatchWrapDiffGATPool(nn.Module):
         return mm
 
     def add_fm(self, x, emb, vertex_features):
-        x_inf = self.emb_inf_feature(x)
-        x_emb = self.emb_pretrain(emb)
-        x_vfeature = self.emb_vertex_feature(vertex_features)
-        x_first_cat = torch.cat((x_inf, x_emb, x_vfeature), dim=2)
+        # x_inf = self.emb_inf_feature(x)
+        # x_emb = self.emb_pretrain(emb)
+        # x_vfeature = self.emb_vertex_feature(vertex_features)
+        # x_first_cat = torch.cat((x_inf, x_emb, x_vfeature), dim=2)
 
         # out_1 = torch.matmul(x, self.V).pow(2).sum(2, keepdim=True) #S_1^2
         # out_2 = torch.matmul(x.pow(2), self.V.pow(2)).sum(2, keepdim=True) # S_2
         # out_inter = 0.5*(out_1 - out_2)
 
-        input_x_cat = [x, emb, vertex_features]
-        fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order)]
+        # input_x_cat = [x, emb, vertex_features]
+        # fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order)]
+        if self.use_pretrain and self.use_vertex_feature:
+            input_x_cat = [x, emb, vertex_features]
+            fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order)]
+        elif self.use_vertex_feature and not self.use_pretrain:
+            input_x_cat = [x, vertex_features]
+            fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order_wo_emb)]
+        elif not self.use_vertex_feature and self.use_pretrain:
+            input_x_cat = [x, emb]
+            fm_second_order_emb_arr = [w(input_x_cat[f_idx]) for f_idx, w in enumerate(self.emb_second_order_wo_vf)]
+        else:
+            raise
         fm_sum_second_order_emb = sum(fm_second_order_emb_arr)
         fm_sum_second_order_emb_square = fm_sum_second_order_emb * fm_sum_second_order_emb  # (x+y)^2
         fm_second_order_emb_square = [item * item for item in fm_second_order_emb_arr]
@@ -384,7 +418,10 @@ class BatchWrapDiffGATPool(nn.Module):
 
         if self.inst_norm:
             emb = self.norm(emb.transpose(1, 2)).transpose(1, 2)
-        x_2 = torch.cat((x, emb), dim=2)
+        if self.use_pretrain:
+            x_2 = torch.cat((x, emb), dim=2)
+        else:
+            x_2 = x
         if self.use_vertex_feature:
             x_2 = torch.cat((x_2, vertex_features), dim=2)
 
