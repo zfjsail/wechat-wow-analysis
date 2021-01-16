@@ -176,8 +176,8 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
 
         # ego_embs.append(gat_add_tensor[:, 0, :])
 
-        out, _ = torch.max(embedding_tensor, dim=1)
-        # out = torch.sum(embedding_tensor, dim=1)
+        # out, _ = torch.max(embedding_tensor, dim=1)
+        out = torch.sum(embedding_tensor, dim=1)
         # if self.args.data == "wechat":
         #     out = embedding_tensor[:, 0, :]
         # else:
@@ -220,8 +220,8 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
                                                                    self.conv_last_after_pool[i])
 
             # print("emb shape", embedding_tensor.shape)
-            out, _ = torch.max(embedding_tensor, dim=1)
-            # out = torch.sum(embedding_tensor, dim=1)
+            # out, _ = torch.max(embedding_tensor, dim=1)
+            out = torch.sum(embedding_tensor, dim=1)
             # if ego_assign is None:
             #     if self.args.data == "wechat":
             #         ego_assign = self.assign_tensor[:, 0, :].unsqueeze(1)
@@ -324,7 +324,7 @@ class BatchWrapDiffGATPool(nn.Module):
                                                 embedding_dim=16, label_dim=label_dim, num_layers=2,
                                                 assign_hidden_dim=32, n_head=n_heads[0], attn_dropout=attn_dropout,
                                                 use_diffpool=use_diffpool, use_deepinf=use_deepinf,
-                                                num_pooling=num_pooling, bn=False, dropout=self.dropout, args=args)
+                                                num_pooling=num_pooling, bn=True, dropout=self.dropout, args=args)
 
         if self.use_diffpool:
             self.fc_after_pool = nn.Linear(label_dim, 2)
