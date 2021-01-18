@@ -220,10 +220,12 @@ wf_temp = "test_results_model_{}_epoch_{}_lr_{}_dropout_{}_attn_dp_{}_vfeature_{
           "_{}_num_pooling_{}_pretrain_{}.txt"
 
 # for seed in seeds:
-for n_pool in range(0, 5):
+# for n_pool in range(0, 5):
 # for mu in range(0, 6):
+for theta in range(0, 5):
 #     args.mu = 0.2 * mu
-    args.num_pooling = n_pool
+#     args.num_pooling = n_pool
+    args.theta = 2 * theta + 1.0
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
