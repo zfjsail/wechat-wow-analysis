@@ -219,11 +219,11 @@ seeds = [42]
 wf_temp = "test_results_model_{}_epoch_{}_lr_{}_dropout_{}_attn_dp_{}_vfeature_{}_label_type_{}_data_{}_mu_{}_theta" \
           "_{}_num_pooling_{}_pretrain_{}.txt"
 
-for seed in seeds:
-# for n_pool in range(0, 5):
+# for seed in seeds:
+for n_pool in range(0, 5):
 # for mu in range(0, 6):
 #     args.mu = 0.2 * mu
-    # args.num_pooling = n_pool
+    args.num_pooling = n_pool
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
