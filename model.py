@@ -52,6 +52,168 @@ class BatchGAT(nn.Module):
         return F.log_softmax(x, dim=-1), None
 
 
+class SoftPoolingGATEncoder(GATEncoderGraph):
+    def __init__(self, max_num_nodes, input_dim, hidden_dim, embedding_dim, label_dim, num_layers,
+                 assign_hidden_dim, n_head, attn_dropout, use_diffpool, use_deepinf,
+                 assign_ratio=0.5, assign_num_layers=-1, num_pooling=1,
+                 pred_hidden_dims=[50], concat=True, bn=False, dropout=0.0, linkpred=True,
+                 assign_input_dim=-1, args=None, attn_type="aa"):
+        '''
+        Args:
+            num_layers: number of gc layers before each pooling
+            num_nodes: number of nodes for each graph in batch
+            linkpred: flag to turn on link prediction side objective
+        '''
+        super(SoftPoolingGATEncoder, self).__init__(input_dim, hidden_dim, embedding_dim, label_dim,
+                                                    num_layers, n_head, attn_dropout,
+                                                    pred_hidden_dims=pred_hidden_dims, concat=concat,
+                                                    args=None, bn=bn, dropout=dropout, attn_type=attn_type)
+
+        self.num_pooling = num_pooling
+        self.linkpred = linkpred
+        self.assign_ent = True
+        self.args = args
+
+        self.use_diffpool = use_diffpool
+        self.use_deepinf = use_deepinf
+
+        # GC
+        self.conv_first_after_pool = nn.ModuleList()
+        self.conv_block_after_pool = nn.ModuleList()
+        self.conv_last_after_pool = nn.ModuleList()
+        for i in range(num_pooling):  # conv on clusters
+            # use self to register the modules in self.modules()
+            conv_first2, conv_block2, conv_last2 = self.build_conv_layers(
+                num_layers, n_head, self.pred_input_dim, hidden_dim,
+                embedding_dim, attn_dropout, attn_mask=False, attn_type=attn_type
+            )
+            conv_block2 = nn.ModuleList()
+            self.conv_first_after_pool.append(conv_first2)
+            self.conv_block_after_pool.append(conv_block2)
+            self.conv_last_after_pool.append(conv_last2)
+
+        # assignment
+        assign_dims = []
+        if assign_num_layers == -1:
+            assign_num_layers = num_layers
+        if assign_input_dim == -1:
+            assign_input_dim = input_dim
+
+        self.assign_conv_first_modules = nn.ModuleList()
+        self.assign_conv_block_modules = nn.ModuleList()
+        self.assign_conv_last_modules = nn.ModuleList()
+        self.assign_pred_modules = nn.ModuleList()
+        assign_dim = int(max_num_nodes * assign_ratio)
+
+        for i in range(num_pooling):
+            if i == 0:
+                cur_attn_mask = True
+            else:
+                cur_attn_mask = False  # old False
+            assign_dims.append(assign_dim)
+            assign_conv_first, assign_conv_block, assign_conv_last = self.build_conv_layers(
+                assign_num_layers, n_head, assign_input_dim, assign_hidden_dim, assign_dim, attn_dropout, cur_attn_mask,
+                attn_type=attn_type)
+            assign_conv_block = nn.ModuleList()
+            assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
+            assign_pred = self.build_pred_layers(assign_pred_input_dim, [], assign_dim, num_aggs=1)
+
+            # next pooling layer
+            assign_input_dim = self.pred_input_dim
+            assign_dim = int(assign_dim * assign_ratio)
+
+            self.assign_conv_first_modules.append(assign_conv_first)
+            self.assign_conv_block_modules.append(assign_conv_block)
+            self.assign_conv_last_modules.append(assign_conv_last)
+            self.assign_pred_modules.append(assign_pred)
+
+        self.pred_model = self.build_pred_layers(self.pred_input_dim * (num_pooling + 1), pred_hidden_dims,
+                                                 label_dim, num_aggs=self.num_aggs)
+
+        for m in self.modules():
+            if isinstance(m, GraphConv):
+                m.weight.data = init.xavier_uniform(m.weight.data, gain=nn.init.calculate_gain('relu'))
+                if m.bias is not None:
+                    m.bias.data = init.constant(m.bias.data, 0.0)
+
+        if use_diffpool and use_deepinf:
+            self.merge_fc_2 = nn.Linear(label_dim + self.pred_input_dim, label_dim)
+            init.xavier_normal_(self.merge_fc_2.weight.data)
+
+    def forward(self, x, adj, batch_num_nodes, **kwargs):
+        if 'assign_x' in kwargs:
+            x_a = kwargs['assign_x']
+        else:
+            x_a = x
+
+        # mask
+        max_num_nodes = adj.size()[1]
+        if batch_num_nodes is not None:
+            embedding_mask = self.construct_mask(max_num_nodes, batch_num_nodes)
+        else:
+            embedding_mask = None
+
+        out_all = []
+
+        embedding_tensor, emb_first = self.gcn_forward(x, adj,
+                                                       self.conv_first, self.conv_block, self.conv_last, embedding_mask)
+
+        # out, _ = torch.max(embedding_tensor, dim=1)
+        out = torch.sum(embedding_tensor, dim=1)
+        out_all.append(out)
+        if self.num_aggs == 2:
+            out = torch.sum(embedding_tensor, dim=1)
+            out_all.append(out)
+
+        first_assignment_mat = None
+
+        for i in range(self.num_pooling):
+            if batch_num_nodes is not None and i == 0:
+                embedding_mask = self.construct_mask(max_num_nodes, batch_num_nodes)
+            else:
+                embedding_mask = None
+
+            self.assign_tensor, _ = self.gcn_forward(x_a, adj,
+                                                     self.assign_conv_first_modules[i],
+                                                     self.assign_conv_block_modules[i],
+                                                     self.assign_conv_last_modules[i],
+                                                     embedding_mask)
+            # [batch_size x num_nodes x next_lvl_num_nodes]
+            self.assign_tensor = nn.Softmax(dim=-1)(self.assign_pred_modules[i](self.assign_tensor))
+            if embedding_mask is not None:
+                self.assign_tensor = self.assign_tensor * embedding_mask
+
+            if i == 0:
+                first_assignment_mat = self.assign_tensor.clone().detach()
+
+            # update pooled features and adj matrix
+            x = torch.matmul(torch.transpose(self.assign_tensor, 1, 2), embedding_tensor)
+            adj = torch.transpose(self.assign_tensor, 1, 2) @ adj @ self.assign_tensor
+            x_a = x
+
+            embedding_tensor, cluster_emb_first = self.gcn_forward(x, adj,
+                                                                   self.conv_first_after_pool[i],
+                                                                   self.conv_block_after_pool[i],
+                                                                   self.conv_last_after_pool[i])
+
+            # out, _ = torch.max(embedding_tensor, dim=1)
+            out = torch.sum(embedding_tensor, dim=1)
+
+            out_all.append(out)
+            if self.num_aggs == 2:
+                out = torch.sum(embedding_tensor, dim=1)
+                out_all.append(out)
+
+        if self.concat:
+            output = torch.cat(out_all, dim=1)
+        else:
+            output = out
+
+        ypred = self.pred_model(output)
+
+        return ypred, first_assignment_mat
+
+
 class BatchWrapDiffGATPool(nn.Module):
     def __init__(self, pretrained_emb_dim, vertex_feature_dim, use_vertex_feature,
                  n_units=[1433, 8, 7], n_heads=[8, 1],
@@ -215,165 +377,3 @@ class BatchWrapDiffGATPool(nn.Module):
             x = self.fc_after_prone(F.relu(xx))
 
         return F.log_softmax(x, dim=-1), assign_mat
-
-
-class SoftPoolingGATEncoder(GATEncoderGraph):
-    def __init__(self, max_num_nodes, input_dim, hidden_dim, embedding_dim, label_dim, num_layers,
-                 assign_hidden_dim, n_head, attn_dropout, use_diffpool, use_deepinf,
-                 assign_ratio=0.5, assign_num_layers=-1, num_pooling=1,
-                 pred_hidden_dims=[50], concat=True, bn=False, dropout=0.0, linkpred=True,
-                 assign_input_dim=-1, args=None, attn_type="aa"):
-        '''
-        Args:
-            num_layers: number of gc layers before each pooling
-            num_nodes: number of nodes for each graph in batch
-            linkpred: flag to turn on link prediction side objective
-        '''
-        super(SoftPoolingGATEncoder, self).__init__(input_dim, hidden_dim, embedding_dim, label_dim,
-                                                    num_layers, n_head, attn_dropout,
-                                                    pred_hidden_dims=pred_hidden_dims, concat=concat,
-                                                    args=None, bn=bn, dropout=dropout, attn_type=attn_type)
-
-        self.num_pooling = num_pooling
-        self.linkpred = linkpred
-        self.assign_ent = True
-        self.args = args
-
-        self.use_diffpool = use_diffpool
-        self.use_deepinf = use_deepinf
-
-        # GC
-        self.conv_first_after_pool = nn.ModuleList()
-        self.conv_block_after_pool = nn.ModuleList()
-        self.conv_last_after_pool = nn.ModuleList()
-        for i in range(num_pooling):  # conv on clusters
-            # use self to register the modules in self.modules()
-            conv_first2, conv_block2, conv_last2 = self.build_conv_layers(
-                num_layers, n_head, self.pred_input_dim, hidden_dim,
-                embedding_dim, attn_dropout, attn_mask=False, attn_type=attn_type
-            )
-            conv_block2 = nn.ModuleList()
-            self.conv_first_after_pool.append(conv_first2)
-            self.conv_block_after_pool.append(conv_block2)
-            self.conv_last_after_pool.append(conv_last2)
-
-        # assignment
-        assign_dims = []
-        if assign_num_layers == -1:
-            assign_num_layers = num_layers
-        if assign_input_dim == -1:
-            assign_input_dim = input_dim
-
-        self.assign_conv_first_modules = nn.ModuleList()
-        self.assign_conv_block_modules = nn.ModuleList()
-        self.assign_conv_last_modules = nn.ModuleList()
-        self.assign_pred_modules = nn.ModuleList()
-        assign_dim = int(max_num_nodes * assign_ratio)
-
-        for i in range(num_pooling):
-            if i == 0:
-                cur_attn_mask = True
-            else:
-                cur_attn_mask = False  # old False
-            assign_dims.append(assign_dim)
-            assign_conv_first, assign_conv_block, assign_conv_last = self.build_conv_layers(
-                assign_num_layers, n_head, assign_input_dim, assign_hidden_dim, assign_dim, attn_dropout, cur_attn_mask,
-                attn_type=attn_type)
-            assign_conv_block = nn.ModuleList()
-            assign_pred_input_dim = assign_hidden_dim * (num_layers - 1) + assign_dim if concat else assign_dim
-            assign_pred = self.build_pred_layers(assign_pred_input_dim, [], assign_dim, num_aggs=1)
-
-            # next pooling layer
-            assign_input_dim = self.pred_input_dim
-            assign_dim = int(assign_dim * assign_ratio)
-
-            self.assign_conv_first_modules.append(assign_conv_first)
-            self.assign_conv_block_modules.append(assign_conv_block)
-            self.assign_conv_last_modules.append(assign_conv_last)
-            self.assign_pred_modules.append(assign_pred)
-
-        self.pred_model = self.build_pred_layers(self.pred_input_dim * (num_pooling + 1), pred_hidden_dims,
-                                                 label_dim, num_aggs=self.num_aggs)
-
-        for m in self.modules():
-            if isinstance(m, GraphConv):
-                m.weight.data = init.xavier_uniform(m.weight.data, gain=nn.init.calculate_gain('relu'))
-                if m.bias is not None:
-                    m.bias.data = init.constant(m.bias.data, 0.0)
-
-        if use_diffpool and use_deepinf:
-            self.merge_fc_2 = nn.Linear(label_dim + self.pred_input_dim, label_dim)
-            init.xavier_normal_(self.merge_fc_2.weight.data)
-
-    def forward(self, x, adj, batch_num_nodes, **kwargs):
-        if 'assign_x' in kwargs:
-            x_a = kwargs['assign_x']
-        else:
-            x_a = x
-
-        # mask
-        max_num_nodes = adj.size()[1]
-        if batch_num_nodes is not None:
-            embedding_mask = self.construct_mask(max_num_nodes, batch_num_nodes)
-        else:
-            embedding_mask = None
-
-        out_all = []
-
-        embedding_tensor, emb_first = self.gcn_forward(x, adj,
-                                                       self.conv_first, self.conv_block, self.conv_last, embedding_mask)
-
-        # out, _ = torch.max(embedding_tensor, dim=1)
-        out = torch.sum(embedding_tensor, dim=1)
-        out_all.append(out)
-        if self.num_aggs == 2:
-            out = torch.sum(embedding_tensor, dim=1)
-            out_all.append(out)
-
-        first_assignment_mat = None
-
-        for i in range(self.num_pooling):
-            if batch_num_nodes is not None and i == 0:
-                embedding_mask = self.construct_mask(max_num_nodes, batch_num_nodes)
-            else:
-                embedding_mask = None
-
-            self.assign_tensor, _ = self.gcn_forward(x_a, adj,
-                                                     self.assign_conv_first_modules[i],
-                                                     self.assign_conv_block_modules[i],
-                                                     self.assign_conv_last_modules[i],
-                                                     embedding_mask)
-            # [batch_size x num_nodes x next_lvl_num_nodes]
-            self.assign_tensor = nn.Softmax(dim=-1)(self.assign_pred_modules[i](self.assign_tensor))
-            if embedding_mask is not None:
-                self.assign_tensor = self.assign_tensor * embedding_mask
-
-            if i == 0:
-                first_assignment_mat = self.assign_tensor.clone().detach()
-
-            # update pooled features and adj matrix
-            x = torch.matmul(torch.transpose(self.assign_tensor, 1, 2), embedding_tensor)
-            adj = torch.transpose(self.assign_tensor, 1, 2) @ adj @ self.assign_tensor
-            x_a = x
-
-            embedding_tensor, cluster_emb_first = self.gcn_forward(x, adj,
-                                                                   self.conv_first_after_pool[i],
-                                                                   self.conv_block_after_pool[i],
-                                                                   self.conv_last_after_pool[i])
-
-            # out, _ = torch.max(embedding_tensor, dim=1)
-            out = torch.sum(embedding_tensor, dim=1)
-
-            out_all.append(out)
-            if self.num_aggs == 2:
-                out = torch.sum(embedding_tensor, dim=1)
-                out_all.append(out)
-
-        if self.concat:
-            output = torch.cat(out_all, dim=1)
-        else:
-            output = out
-
-        ypred = self.pred_model(output)
-
-        return ypred, first_assignment_mat
