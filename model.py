@@ -232,7 +232,7 @@ class SoftPoolingGATEncoder(GATEncoderGraph):
         super(SoftPoolingGATEncoder, self).__init__(input_dim, hidden_dim, embedding_dim, label_dim,
                                                     num_layers, n_head, attn_dropout,
                                                     pred_hidden_dims=pred_hidden_dims, concat=concat,
-                                                    args=None, bn=bn, dropout=dropout)
+                                                    args=None, bn=bn, dropout=dropout, attn_type=attn_type)
 
         self.num_pooling = num_pooling
         self.linkpred = linkpred

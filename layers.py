@@ -99,7 +99,7 @@ class GraphConv(nn.Module):
 
 class GATEncoderGraph(nn.Module):
     def __init__(self, input_dim, hidden_dim, embedding_dim, label_dim, num_layers, n_head, attn_dropout,
-                 pred_hidden_dims=[], concat=True, bn=False, dropout=0.0, args=None):  # original default bn is True
+                 pred_hidden_dims=[], concat=True, bn=False, dropout=0.0, args=None, attn_type="aa"):  # original default bn is True
         super(GATEncoderGraph, self).__init__()
         self.concat = concat
         self.bn = bn
@@ -112,7 +112,7 @@ class GATEncoderGraph(nn.Module):
             self.bias = args.bias
 
         self.conv_first, self.conv_block, self.conv_last = self.build_conv_layers(
-            num_layers, n_head, input_dim, hidden_dim, embedding_dim, attn_dropout, True)
+            num_layers, n_head, input_dim, hidden_dim, embedding_dim, attn_dropout, True, attn_type)
         self.act = nn.ReLU()
         self.label_dim = label_dim
 
