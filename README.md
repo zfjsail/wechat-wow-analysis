@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ### Dataset
 
 Due to data privacy issue in WeChat, we provide a public Weibo dataset to evaluate our prediction model.
-The Weibo dataset can be downloaded from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/f/fefd814d64194b64a3df/?dl=1).
+The Weibo dataset can be downloaded from [Baidu Pan](https://pan.baidu.com/s/17SsSPJuaYMcKittbGq5qfQ?pwd=yp3m).
 Unzip the file and put the _weibo_ directory into _DATA\_DIR_ specified in _settings.py_.
 
 ## How to run
